@@ -25,27 +25,44 @@ struct TGAHeader {
 #pragma pack(pop)
 
 struct TGAColor {
+   /// @brief red, green, blue, alpha
    std::uint8_t bgra[4] = {0,0,0,0};
+   /// @brief bytes per pixel
    std::uint8_t bytespp = 4;
    std::uint8_t& operator[](const int i) { return bgra[i]; }
 };
 
 struct TGAImage {
+   /// @brief color format
    enum Format { GRAYSCALE=1, RGB=3, RGBA=4 };
    TGAImage() = default;
+   /// @brief create empty image
    TGAImage(const int w, const int h, const int bpp);
+   /// @brief read image from file
    bool  read_tga_file(const std::string filename);
+   /// @brief write image to file
    bool write_tga_file(const std::string filename, const bool vflip=true, const bool rle=true) const;
+   /// @brief flip image horizontally
    void flip_horizontally();
+   /// @brief flip image vertically
    void flip_vertically();
+   /// @brief get color of pixel at (x,y)
    TGAColor get(const int x, const int y) const;
+   /// @brief set color into pixel at  (x,y)
    void set(const int x, const int y, const TGAColor &c);
    int width()  const;
    int height() const;
+   void clear();
 private:
+   TGAColor default_background = {0,0,0,255};
+   /// @brief load rle data
    bool   load_rle_data(std::ifstream &in);
+   /// @brief unload rle data
    bool unload_rle_data(std::ofstream &out) const;
+   /// @brief width and height
    int w = 0, h = 0;
+   /// @brief bit per pixel
    std::uint8_t bpp = 0;
+   /// @brief image data
    std::vector<std::uint8_t> data = {};
 };

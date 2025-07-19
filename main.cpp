@@ -1,7 +1,11 @@
 #include <iostream>
 #include "TGAImage.h"
 #include "Graphic.h"
-#include "Point.hpp"
+#include "Vec.hpp"
+
+// added for looking and changes
+#include <thread>
+#include <chrono>
 
 int main(int argc, char* argv[]) {
    constexpr int width = 800;
@@ -17,10 +21,18 @@ int main(int argc, char* argv[]) {
          image.set(x, y, background);
    }
    vec2 p3[3]={{50, 60}, {80, 160}, {100, 100}};
-   triangle(p3[0],p3[1],p3[2], image, green);
-   if(!image.write_tga_file("output.tga")) {
-      std::cerr << "Failed to write TGA file\n";
-      return 1;
+   vec2 add{-20,40};
+
+   for(int i=0;i<100;i++){
+      image.clear();
+      triangle(p3[0]+add+vec2{i,i},p3[1]+add,p3[2]+add, image, red);
+      if(!image.write_tga_file("output.tga")) {
+         std::cerr << "Failed to write TGA file\n";
+         return 1;
+      }
+      // break;
+      
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
    }
    return 0;
 }

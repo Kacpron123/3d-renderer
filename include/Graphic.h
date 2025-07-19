@@ -1,15 +1,15 @@
 #pragma once
-#include "Point.hpp"
+#include "Vec.hpp"
 #include "TGAImage.h"
 
 void viewport();
 void camera(const vec3 eye, const vec3 center, const vec3 up);
 
-void line(const vec2 p1,const vec2 p2, TGAImage &image, TGAColor color){
-    int x1 = p1.x;
-    int y1 = p1.y;
-    int x2 = p2.x;
-    int y2 = p2.y;
+void line(const vec2 a,const vec2 b, TGAImage &image, TGAColor color){
+    int x1 = a.x;
+    int y1 = a.y;
+    int x2 = b.x;
+    int y2 = b.y;
     int dx = std::abs(x2 - x1);
     int dy = std::abs(y2 - y1);
     int sx = (x1 < x2) ? 1 : -1;
@@ -25,29 +25,28 @@ void line(const vec2 p1,const vec2 p2, TGAImage &image, TGAColor color){
     }
 }
 
-void triangle(vec2 p1, vec2 p2, vec2 p3, TGAImage &image, TGAColor color){
-   if(p1.y>p2.y) std::swap(p1,p2);
-   if(p1.y>p3.y) std::swap(p1,p3);
-   if(p2.y>p3.y) std::swap(p2,p3);
-   int total_hight=p3.y-p1.y;
-   // lower half
-   if(p1.y!=p2.y){
-      int segment_hight=p2.y-p1.y;
-      for(int y=p1.y;y<=p2.y;y++){
-         int x1=p1.x+((p3.x-p1.x)*(y-p1.y))/total_hight;
-         int x2=p2.x+((p2.x-p1.x)*(y-p2.y))/segment_hight;         
-         for(int x=std::min(x1,x2);x<std::max(x1,x2);x++)
-            image.set(x,y,color);
-      }
-   }
-   // upper half
-   if(p3.y!=p2.y){
-      int segment_hight=p3.y-p2.y;
-      for(int y=p2.y;y<=p3.y;y++){
-         int x1=p3.x+((p3.x-p1.x)*(y-p3.y))/total_hight;
-         int x2=p2.x+((p3.x-p2.x)*(y-p2.y))/segment_hight;         
-         for(int x=std::min(x1,x2);x<std::max(x1,x2);x++)
-            image.set(x,y,color);
+
+vec3 barycentric(const vec2 a[3], vec2 p){
+   mat<3,3> ABC={ vec3{a[0].x , a[0].y , 1.},
+                  vec3{a[1].x , a[1].y , 1.},
+                  vec3{a[2].x , a[2].y , 1.}};
+   // if(ABC.det()<1e-9) return vec3{-1,1,1};
+   return ABC.invert_transpose() * vec3{p.x,p.y,1};
+}
+void triangle(vec2 a, vec2 b, vec2 c, TGAImage &image, TGAColor color){
+   vec2 p[3]={a,b,c};
+   // defining bounding box
+   int min_x = std::min(image.width()-1, static_cast<int>(std::min(a.x, std::min(b.x, c.x))));
+   int max_x = std::max(0,static_cast<int>(std::max(a.x, std::max(b.x, c.x))));
+   int min_y = std::min(image.height()-1,static_cast<int>(std::min(a.y, std::min(b.y, c.y))));
+   int max_y = std::max(0,static_cast<int>(std::max(a.y, std::max(b.y, c.y))));
+   
+   #pragma omp parallel for
+   for(int x=min_x;x<=max_x;x++){
+      for(int y=min_y;y<=max_y;y++){
+         vec3 bary=barycentric(p,vec2{static_cast<double>(x),static_cast<double>(y)});
+         if(bary[0]<0 || bary[1]<0 || bary[2]<0) continue; //pixel outside
+         image.set(x,y,color);
       }
    }
 }
