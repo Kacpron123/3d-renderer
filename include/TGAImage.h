@@ -55,7 +55,7 @@ struct TGAImage {
    void set(const int x, const int y, const TGAColor &c);
    int width()  const;
    int height() const;
-   void clear();
+   void clear(TGAColor c = {0,0,0,255});
 private:
    TGAColor default_background = {0,0,0,255};
    /// @brief load rle data

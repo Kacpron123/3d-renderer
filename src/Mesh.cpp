@@ -35,7 +35,7 @@ Mesh::Mesh(const std::string &filename){
             iss >> n[i];
          norms.push_back(normalized(n));
       }
-      else if (token == "f") { 
+      else if (token == "f") {
       int count=0;
       vec3i v, vt, vn;
       while (iss >> token) {

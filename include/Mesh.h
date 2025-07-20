@@ -18,14 +18,16 @@ public:
    Mesh(const std::string &filename);
    Mesh(const Mesh &mesh) = default;
    int nverts() const { return verts.size(); }
-   int nfaces() const { return norms.size(); }
+   int nfaces() const { return faces_verts.size(); }
    
    vec3 vert(int i) const { return verts[i]; }
    vec3 vert(int iface, int nvert) const{ return verts[faces_verts[iface][nvert]]; }
+   vec3i ivert(int iface) const{return faces_verts[iface];}
    vec3 normal(int i) const { return norms[i]; }
    vec3 normal(int iface, int nvert) const{ return norms[faces_norms[iface][nvert]]; }
    
    std::vector<vec3> get_verts() const { return verts; }
+   
    // void move();
    // void rotate();
    // void scale();

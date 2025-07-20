@@ -201,9 +201,9 @@ int TGAImage::height() const {
     return h;
 }
 
-void TGAImage::clear() {
+void TGAImage::clear(TGAColor c) {
     
     size_t num_pixels = w*h;
     for(size_t i = 0; i < num_pixels; i++)
-        memcpy(data.data() + i*bpp, default_background.bgra, bpp);
+        memcpy(data.data() + i*bpp, c.bgra, bpp);
 }
