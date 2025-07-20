@@ -20,7 +20,6 @@ template<int n,typename T=double> struct vec {
    T data[n] = {0};
 };
 
-
 template<typename T> struct vec<2,T> {
    T x = 0, y = 0;
    vec() = default;
@@ -47,8 +46,6 @@ template<typename T> struct vec<4,T> {
    vec(const vec<4>& v) : x(v.x), y(v.y), z(v.z), w(v.w) {}
    T& operator[](const int i)       { assert(i>=0 && i<4); return i<2 ? (i ? y : x) : (2==i ? z : w); }
    T  operator[](const int i) const { assert(i>=0 && i<4); return i<2 ? (i ? y : x) : (2==i ? z : w); }
-   vec<2> xy()  const { return {x, y};    }
-   vec<3> xyz() const { return {x, y, z}; }
 };
 
 // Aliases
@@ -102,8 +99,7 @@ template<int n> std::ostream& operator<<(std::ostream& out, const vec<n>& v) {
    return out;
 }
 
-
-
+// Operations
 
 template<int n> double norm(const vec<n>& v) {
    return std::sqrt(v*v);
@@ -117,12 +113,37 @@ inline vec3 cross(const vec3 &v1, const vec3 &v2) {
    return {v1.y*v2.z - v1.z*v2.y, v1.z*v2.x - v1.x*v2.z, v1.x*v2.y - v1.y*v2.x};
 }
 
+inline vec3 face_nomral(const vec3 &v1, const vec3 &v2, const vec3 &v3) {
+   return normalized(cross(v2-v1, v3-v1));
+}
+
+/// @brief Converts a vector of size old_size to a vector of size new_size
+/// it fills the rest of the vector with fill parameter and return vector of size new_size 
+template<int new_size,int old_size,typename T>
+vec<new_size,T> convert_to_size(const vec<old_size,T>& v,T fill=T{0}){
+   if(old_size==new_size) return vec<new_size,T>(v);
+   if(old_size<new_size){
+      vec<new_size,T> res;
+      int i=0;
+      for(;i<old_size;i++) res[i]=v[i];
+      for(;i<new_size;i++) res[i]=fill;
+      return res;
+   }else{
+      vec<new_size,T> res;
+      for(int i=0;i<new_size;i++) res[i]=v[i];
+      return res;
+   }
+}
+// Matrices
+
 template<int n> struct dt;
 
 template<int nrows,int ncols> struct mat {
    vec<ncols> rows[nrows] = {{}};
-
-         vec<ncols>& operator[] (const int idx)       { assert(idx>=0 && idx<nrows); return rows[idx]; }
+   
+   /// @brief operator[] returns a row
+   vec<ncols>& operator[] (const int idx)       { assert(idx>=0 && idx<nrows); return rows[idx]; }
+   /// @brief operator[] returns a row
    const vec<ncols>& operator[] (const int idx) const { assert(idx>=0 && idx<nrows); return rows[idx]; }
 
    static mat<nrows,ncols> identity() {
@@ -159,6 +180,15 @@ template<int nrows,int ncols> struct mat {
       return res;
    }
 };
+
+using mat3 = mat<3,3>;
+using mat4 = mat<4,4>;
+
+template<int n> mat<n,n> once(){
+   mat<n,n> res;
+   for(int i=0;i<n;i++) res[i][i]=1;
+   return res;
+}
 
 template<int nrows,int ncols> vec<ncols> operator*(const vec<nrows>& lhs, const mat<nrows,ncols>& rhs) {
    return (mat<1,nrows>{{lhs}}*rhs)[0];
