@@ -7,19 +7,26 @@ endif()
 
 project(3d-renderer LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
-
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU|Intel")
   add_compile_options(-Wall)
 endif()
 
+aux_source_directory(${PROJECT_SOURCE_DIR}/src SOURCES)
+
 find_package(OpenMP COMPONENTS CXX)
 
 set(INCLUDES ${PROJECT_SOURCE_DIR}/include)
-include_directories(${INCLUDES})
 
-file(GLOB SOURCES "${PROJECT_SOURCE_DIR}/src/*.cpp")
+add_library(renderer_lib STATIC ${SOURCES})
+target_link_libraries(renderer_lib PRIVATE $<$<BOOL:${OpenMP_CXX_FOUND}>:OpenMP::OpenMP_CXX>)
+target_include_directories(renderer_lib PUBLIC ${INCLUDES})
 
-add_executable(${PROJECT_NAME} main.cpp ${SOURCES})
-
+add_executable(${PROJECT_NAME} main.cpp)
+target_link_libraries(${PROJECT_NAME} PRIVATE renderer_lib)
 target_link_libraries(${PROJECT_NAME} PRIVATE $<$<BOOL:${OpenMP_CXX_FOUND}>:OpenMP::OpenMP_CXX>)
+
+enable_testing()
+add_subdirectory(tests)

@@ -7,6 +7,7 @@ template<int n,typename T=double> struct vec {
    static_assert(n>0);
    static_assert(std::is_arithmetic<T>::value);
    vec() = default;
+   vec(const vec<n>& v) { for(int i=0;i<n;i++) data[i]=v[i]; }
    explicit vec(T v) { for(int i=0;i<n;i++) data[i]=v; }
    T& operator[](const int i)       { assert(i>=0 && i<n); return data[i]; }
    T  operator[](const int i) const { assert(i>=0 && i<n); return data[i]; }
@@ -121,18 +122,14 @@ inline vec3 face_nomral(const vec3 &v1, const vec3 &v2, const vec3 &v3) {
 /// it fills the rest of the vector with fill parameter and return vector of size new_size 
 template<int new_size,int old_size,typename T>
 vec<new_size,T> convert_to_size(const vec<old_size,T>& v,T fill=T{0}){
-   if(old_size==new_size) return vec<new_size,T>(v);
-   if(old_size<new_size){
-      vec<new_size,T> res;
-      int i=0;
-      for(;i<old_size;i++) res[i]=v[i];
-      for(;i<new_size;i++) res[i]=fill;
-      return res;
-   }else{
-      vec<new_size,T> res;
-      for(int i=0;i<new_size;i++) res[i]=v[i];
-      return res;
-   }
+   vec<new_size,T> res;
+   int common_size=std::min(new_size,old_size);
+   for(int i=0;i<common_size;i++)
+      res[i]=v[i];
+
+   for(int i=common_size;i<new_size;i++)
+      res[i]=fill;
+   return res;
 }
 // Matrices
 
@@ -140,7 +137,7 @@ template<int n> struct dt;
 
 template<int nrows,int ncols> struct mat {
    vec<ncols> rows[nrows] = {{}};
-   
+
    /// @brief operator[] returns a row
    vec<ncols>& operator[] (const int idx)       { assert(idx>=0 && idx<nrows); return rows[idx]; }
    /// @brief operator[] returns a row

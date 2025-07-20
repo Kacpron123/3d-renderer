@@ -30,6 +30,9 @@ struct TGAColor {
    /// @brief bytes per pixel
    std::uint8_t bytespp = 4;
    std::uint8_t& operator[](const int i) { return bgra[i]; }
+   TGAColor() = default;
+   TGAColor(const std::uint8_t r, const std::uint8_t g, const std::uint8_t b, const std::uint8_t a) { bgra[0] = r; bgra[1] = g; bgra[2] = b; bgra[3] = a; }
+   TGAColor(const std::uint8_t r, const std::uint8_t g, const std::uint8_t b) { bgra[0] = r; bgra[1] = g; bgra[2] = b; bgra[3] = 255; }
 };
 
 struct TGAImage {
