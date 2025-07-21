@@ -63,3 +63,41 @@ Mesh::Mesh(const std::string &filename){
       }
    }
 }
+
+void Mesh::rotateX(float angle_degrees){
+   float angle_radians=angle_degrees * M_PI / 180.0;
+   float c=std::cos(angle_radians);
+   float s=std::sin(angle_radians);
+   mat4 rotation_matrix=once<4>();
+   rotation_matrix[1][1]=c; rotation_matrix[2][1]=s;
+   rotation_matrix[1][2]=-s; rotation_matrix[2][2]=c;
+   modelMatrix=modelMatrix*rotation_matrix;
+}
+void Mesh::rotateY(float angle_degrees){
+   float angle_radians = angle_degrees * M_PI / 180.0;
+   float c = std::cos(angle_radians);
+   float s = std::sin(angle_radians);
+   mat4 rotation_matrix = mat4::identity();
+   rotation_matrix[0][0] = c; rotation_matrix[2][0] = -s;
+   rotation_matrix[0][2] = s; rotation_matrix[2][2] = c;
+   modelMatrix = modelMatrix * rotation_matrix;
+}
+void Mesh::rotateZ(float angle_degrees){
+   float angle_radians = angle_degrees * M_PI / 180.0;
+   float c = std::cos(angle_radians);
+   float s = std::sin(angle_radians);
+   mat4 rotation_matrix = mat4::identity();
+   rotation_matrix[0][0] = c; rotation_matrix[0][1] = -s;
+   rotation_matrix[1][0] = s; rotation_matrix[1][1] = c;
+   modelMatrix = modelMatrix * rotation_matrix;
+}
+void Mesh::move(vec3 move){
+modelMatrix[3][0] += move.x;
+modelMatrix[3][1] += move.y;
+modelMatrix[3][2] += move.z;
+}
+void Mesh::scale(vec3 scale){
+for(int i:{0,1,2})
+   modelMatrix[i][i] *= scale[i];
+}
+

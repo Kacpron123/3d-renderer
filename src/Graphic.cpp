@@ -1,5 +1,4 @@
 #include "Graphic.h"
-
 void line(const vec2 a,const vec2 b, TGAImage &image, TGAColor color){
    int x1 = a.x;
    int y1 = a.y;
@@ -28,7 +27,33 @@ vec3 barycentric(const vec2 a[3], vec2 p){
    // if(ABC.det()<1e-9) return vec3{-1,1,1};
    return ABC.invert_transpose() * vec3{p.x,p.y,1};
 }
+
+void triangle3d(vec4 a,vec4 b,vec4 c,TGAImage& image,TGAColor color){
+   int winding_value = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+   if(winding_value<=0) return; //if face is given  
+   vec2 p[3]={convert_to_size<2>(a),convert_to_size<2>(b),convert_to_size<2>(c)};
+   // defining bounding box
+   int min_x = std::min(image.width()-1, static_cast<int>(std::min(a.x, std::min(b.x, c.x))));
+   int max_x = std::max(0,static_cast<int>(std::max(a.x, std::max(b.x, c.x))));
+   int min_y = std::min(image.height()-1,static_cast<int>(std::min(a.y, std::min(b.y, c.y))));
+   int max_y = std::max(0,static_cast<int>(std::max(a.y, std::max(b.y, c.y))));
+   
+   #pragma omp parallel for
+   for(int x=min_x;x<=max_x;x++){
+      for(int y=min_y;y<=max_y;y++){
+         vec3 bary=barycentric(p,vec2{static_cast<double>(x),static_cast<double>(y)});
+         if(bary[0]<0 || bary[1]<0 || bary[2]<0) continue; //pixel outside
+         // double depth=vec3{1.,1.,1.}*vec3{a.z,b.z,c.z}*0.3;
+         // color[0]=std::max(0,color[0]-(int)depth);
+         // color[1]=std::max(0,color[1]-(int)depth);
+         // color[2]=std::max(0,color[2]-(int)depth);
+         image.set(x,y,color);
+      }
+   }
+}
 void triangle(vec2 a, vec2 b, vec2 c, TGAImage &image, TGAColor color){
+   int winding_value = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+   if(winding_value<=0) return; //if face is given  
    vec2 p[3]={a,b,c};
    // defining bounding box
    int min_x = std::min(image.width()-1, static_cast<int>(std::min(a.x, std::min(b.x, c.x))));
@@ -44,9 +69,4 @@ void triangle(vec2 a, vec2 b, vec2 c, TGAImage &image, TGAColor color){
          image.set(x,y,color);
       }
    }
-}
-
-void triangle(vec3 a,vec3 b,vec3 c,TGAImage &image,TGAColor color){
-   
-   triangle(vec2{a.x,a.y},vec2{b.x,b.y},vec2{c.x,c.y},image,color);
 }

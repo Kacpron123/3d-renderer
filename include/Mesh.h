@@ -13,6 +13,8 @@ class Mesh : public Object3D{
    std::vector<vec3i> faces_verts;
    std::vector<vec3i> faces_norms;
    std::vector<vec2i> faces_uvs;
+
+   mat4 modelMatrix=once<4>();
 public:
    Mesh() = default;
    Mesh(const std::string &filename);
@@ -28,7 +30,10 @@ public:
    
    std::vector<vec3> get_verts() const { return verts; }
    
-   // void move();
-   // void rotate();
-   // void scale();
+   const mat4& getModelMatrix() const {return modelMatrix;};
+   void rotateX(float angle_degrees);
+   void rotateY(float angle_degrees);
+   void rotateZ(float angle_degrees);
+   void move(vec3 move);
+   void scale(vec3 scale);
 };

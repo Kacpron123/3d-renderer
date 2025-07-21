@@ -30,12 +30,16 @@ struct TGAColor {
    /// @brief bytes per pixel
    std::uint8_t bytespp = 4;
    std::uint8_t& operator[](const int i) { return bgra[i]; }
-   TGAColor() = default;
-   TGAColor(const std::uint8_t r, const std::uint8_t g, const std::uint8_t b, const std::uint8_t a) { bgra[0] = r; bgra[1] = g; bgra[2] = b; bgra[3] = a; }
-   TGAColor(const std::uint8_t r, const std::uint8_t g, const std::uint8_t b) { bgra[0] = r; bgra[1] = g; bgra[2] = b; bgra[3] = 255; }
+   constexpr TGAColor() = default;
+   constexpr TGAColor(const std::uint8_t r, const std::uint8_t g, const std::uint8_t b, const std::uint8_t a): bgra{b,g,r,a} {}
+   constexpr TGAColor(const std::uint8_t r, const std::uint8_t g, const std::uint8_t b): TGAColor(r,g,b,255){}
 };
-
-struct TGAImage {
+// known colors:
+   static constexpr TGAColor red   {255, 0,   0,   255};
+   static constexpr TGAColor blue  {0,   0,   255, 255};
+   static constexpr TGAColor green {0,   255, 0,   255};
+   static constexpr TGAColor white {255, 255, 255, 255};
+   static constexpr TGAColor black {0,   0,   0,   255};struct TGAImage {
    /// @brief color format
    enum Format { GRAYSCALE=1, RGB=3, RGBA=4 };
    TGAImage() = default;
@@ -55,9 +59,8 @@ struct TGAImage {
    void set(const int x, const int y, const TGAColor &c);
    int width()  const;
    int height() const;
-   void clear(TGAColor c = {0,0,0,255});
+   void clear(TGAColor c = black);
 private:
-   TGAColor default_background = {0,0,0,255};
    /// @brief load rle data
    bool   load_rle_data(std::ifstream &in);
    /// @brief unload rle data
