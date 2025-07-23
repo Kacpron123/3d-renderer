@@ -36,4 +36,5 @@ public:
    void rotateZ(float angle_degrees);
    void move(vec3 move);
    void scale(vec3 scale);
+   void scale(double f){scale({f,f,f});}
 };

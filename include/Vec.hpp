@@ -114,7 +114,7 @@ inline vec3 cross(const vec3 &v1, const vec3 &v2) {
    return {v1.y*v2.z - v1.z*v2.y, v1.z*v2.x - v1.x*v2.z, v1.x*v2.y - v1.y*v2.x};
 }
 
-inline vec3 face_nomral(const vec3 &v1, const vec3 &v2, const vec3 &v3) {
+inline vec3 face_normal(const vec3 &v1, const vec3 &v2, const vec3 &v3) {
    return normalized(cross(v2-v1, v3-v1));
 }
 

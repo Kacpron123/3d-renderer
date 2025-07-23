@@ -3,6 +3,7 @@
 #include "Vec.hpp"
 #include "Graphic.h"
 // rand()
+#include <algorithm>
 #include <cstdlib>
 #include <ctime>
 
@@ -36,7 +37,7 @@ void Scene::setProjection(float fovy_degrees, float aspect, float zNear, float z
     float m00 = 1.0f / (aspect * tanHalfFovy);
     float m11 = 1.0f / tanHalfFovy;
     float m22 = -(zFar + zNear) / (zFar - zNear);
-    float m23 = -(zFar * zNear) / (zFar - zNear);
+    float m23 = -2.0f * (zFar * zNear) / (zFar - zNear);
     float m32 = -1.0f;
     float m33 = 0.0f;
 
@@ -47,14 +48,11 @@ void Scene::setProjection(float fovy_degrees, float aspect, float zNear, float z
         vec4{0, 0, m32, m33}  
     };
 
-    // Optional: Print the matrix for debugging
-    // std::cout << "Projection Matrix:\n" << projection << std::endl;
 }
 void Scene::setViewport(int x,int y,int width,int height){
-   // viewport = {{{width/2., 0, 0, x+width/2.}, {0, height/2., 0, y+height/2.}, {0,0,1,0}, {0,0,0,1}}};
    viewport = {
-      vec4{width/2.,0,0,x+width/2},
-      vec4{0,height/2.,0,y+height/2},
+      vec4{width/2.,0,0,static_cast<double>(x+width/2)},
+      vec4{0,height/2.,0,static_cast<double>(y+height/2)},
       vec4{0,0,1,0},
       vec4{0,0,0,1}};
    zbuffer=std::vector<std::vector<double>>(height, std::vector<double>(width, 0));
@@ -62,74 +60,62 @@ void Scene::setViewport(int x,int y,int width,int height){
    
 
 void Scene::raster_line(vec4 p0_clip, vec4 p1_clip, TGAImage &image, TGAColor color) {
-    // 1. Perform perspective divide to get NDC
-    // Crucial: check for w=0 before division (point at infinity or on projection plane)
-    // A robust renderer would implement line clipping in clip space here.
-    // For simplicity, we'll return if w is problematic.
-    if (p0_clip.w == 0.0f || std::fabs(p0_clip.w) < std::numeric_limits<float>::epsilon() ||
-        p1_clip.w == 0.0f || std::fabs(p1_clip.w) < std::numeric_limits<float>::epsilon()) {
-        return; 
-    }
+   if (p0_clip.w == 0.0f || std::fabs(p0_clip.w) < std::numeric_limits<float>::epsilon() ||
+      p1_clip.w == 0.0f || std::fabs(p1_clip.w) < std::numeric_limits<float>::epsilon()) {
+      return; 
+   }
+   vec4 p0_ndc = p0_clip / p0_clip.w;
+   vec4 p1_ndc = p1_clip / p1_clip.w;
 
-    vec4 p0_ndc = p0_clip / p0_clip.w;
-    vec4 p1_ndc = p1_clip / p1_clip.w;
+   vec3 p0_screen = convert_to_size<3>(viewport * p0_ndc);
+   vec3 p1_screen = convert_to_size<3>(viewport * p1_ndc);
 
-    // 2. Perform viewport transform to get screen-space points
-    // The Z-component of pX_screen will be the NDC Z (due to viewport[2][2]=1, viewport[2][3]=0)
-    vec3 p0_screen = convert_to_size<3>(viewport * p0_ndc);
-    vec3 p1_screen = convert_to_size<3>(viewport * p1_ndc);
+   bool steep = false;
+   if (std::abs(static_cast<int>(p0_screen.x) - static_cast<int>(p1_screen.x)) < std::abs(static_cast<int>(p0_screen.y) - static_cast<int>(p1_screen.y))) {
+      std::swap(p0_screen.x, p0_screen.y);
+      std::swap(p1_screen.x, p1_screen.y);
+      steep = true;
+   }
+   if (p0_screen.x > p1_screen.x) {
+      std::swap(p0_screen, p1_screen);
+   }
 
-    // From here, the original Bresenham's and Z-buffer logic remains the same
-    // as it now operates on the calculated screen-space coordinates (x,y)
-    // and the NDC Z value (z).
+   int x0 = static_cast<int>(p0_screen.x);
+   int y0 = static_cast<int>(p0_screen.y);
+   int x1 = static_cast<int>(p1_screen.x);
+   int y1 = static_cast<int>(p1_screen.y);
 
-    bool steep = false;
-    if (std::abs(static_cast<int>(p0_screen.x) - static_cast<int>(p1_screen.x)) < std::abs(static_cast<int>(p0_screen.y) - static_cast<int>(p1_screen.y))) {
-        std::swap(p0_screen.x, p0_screen.y);
-        std::swap(p1_screen.x, p1_screen.y);
-        steep = true;
-    }
-    if (p0_screen.x > p1_screen.x) {
-        std::swap(p0_screen, p1_screen);
-    }
+   double z0 = p0_screen.z; // NDC Z from viewport transform
+   double z1 = p1_screen.z; // NDC Z from viewport transform
 
-    int x0 = static_cast<int>(p0_screen.x);
-    int y0 = static_cast<int>(p0_screen.y);
-    int x1 = static_cast<int>(p1_screen.x);
-    int y1 = static_cast<int>(p1_screen.y);
+   int dx = x1 - x0;
+   int dy = y1 - y0;
 
-    double z0 = p0_screen.z; // NDC Z from viewport transform
-    double z1 = p1_screen.z; // NDC Z from viewport transform
+   double derror2 = std::abs(dy) * 2;
+   double error2 = 0;
+   int y = y0;
 
-    int dx = x1 - x0;
-    int dy = y1 - y0;
+   for (int x = x0; x <= x1; x++) {
+      double t = (dx == 0) ? 0.0 : (static_cast<double>(x - x0) / dx);
+      double current_z = z0 * (1.0 - t) + z1 * t;
 
-    double derror2 = std::abs(dy) * 2;
-    double error2 = 0;
-    int y = y0;
+      int current_x = steep ? y : x;
+      int current_y = steep ? x : y;
 
-    for (int x = x0; x <= x1; x++) {
-        double t = (dx == 0) ? 0.0 : (static_cast<double>(x - x0) / dx);
-        double current_z = z0 * (1.0 - t) + z1 * t;
+      if (current_x >= 0 && current_x < image.width() && current_y >= 0 && current_y < image.height()) {
+         if (current_z < zbuffer[current_y][current_x]) {
+            zbuffer[current_y][current_x] = current_z;
+            image.set(current_x, current_y, color);
+         }
+      }
 
-        int current_x = steep ? y : x;
-        int current_y = steep ? x : y;
-
-        if (current_x >= 0 && current_x < image.width() && current_y >= 0 && current_y < image.height()) {
-            if (current_z < zbuffer[current_y][current_x]) {
-               zbuffer[current_y][current_x] = current_z;
-               image.set(current_x, current_y, color);
-            }
-        }
-
-        error2 += derror2;
-        if (error2 > dx) {
-            y += (y1 > y0 ? 1 : -1);
-            error2 -= dx * 2;
-        }
-    }
+      error2 += derror2;
+      if (error2 > dx) {
+         y += (y1 > y0 ? 1 : -1);
+         error2 -= dx * 2;
+      }
+   }
 }
-
 void Scene::draw(TGAImage& image){
    srand(time(NULL));
    for(auto &line:zbuffer) for(double &v:line) v=std::numeric_limits<double>::max(); //clearing zbuffer
@@ -148,17 +134,25 @@ void Scene::draw(TGAImage& image){
          raster_line(A, v, image, colors[i]);
       }
    }
+
+   // to speed up calculations, calculate matrix at the start
+   mat4 matrix=projection* modelview;
    for(const auto &mesh : Meshes){
       std::vector<vec4> draw_verts;
+      matrix=matrix*mesh.getModelMatrix();
       for(const vec3 &vert : mesh.get_verts()){
          // object space
          vec4 v=convert_to_size<4>(vert,1.);
+
+         v=matrix*v;
          // apply object matrix
-         v=mesh.getModelMatrix()*v;
+         // v=mesh.getModelMatrix()*v;
+
+         // here how points are converted:
          // world space > view space
-         v=modelview*v;
+         // v=modelview*v;
          // view space > clip space
-         v=projection*v;
+         // v=projection*v;
          // // NDC(Normalized Device Coordinates) > viewport   ]
          // v=v/v[3];                                          ]moved to methods
          // // screen space                                    ]raster_line and rasterization
@@ -181,7 +175,11 @@ void Scene::draw(TGAImage& image){
       case SOLID:
          for(int i=0;i<mesh.nfaces();i++){
             const vec3i d=mesh.ivert(i);
-            TGAColor color=TGAColor(50+rand()%100,0,150+rand()%100);
+            vec3 normal=face_normal(convert_to_size<3>(draw_verts[d[0]]),convert_to_size<3>(draw_verts[d[1]]),convert_to_size<3>(draw_verts[d[2]]));
+            int r = static_cast<int>((normal.x + 1.0) / 2.0 * 255.0);
+            int g = static_cast<int>((normal.y + 1.0) / 2.0 * 255.0);
+            int b = static_cast<int>((normal.z + 1.0) / 2.0 * 255.0);
+            TGAColor color(r, g, b);
             vec4 clip_verts[3] = { draw_verts[d[0]], draw_verts[d[1]], draw_verts[d[2]] };
             rasterize(clip_verts, image, color);
          }
@@ -191,6 +189,41 @@ void Scene::draw(TGAImage& image){
          break;
       }
    }
+   
+   if(draw_zbuffer){ // saving z buffer
+   TGAImage buffer(zbuffer[0].size(),zbuffer.size(),3);
+   double zbuffer_max = [*this]() {
+      double max_value = -std::numeric_limits<double>::max();
+      for (const auto& row : zbuffer) {
+         for (double z : row) {
+            if (z != std::numeric_limits<double>::max() && z > max_value) {
+               max_value = z;
+            }
+         }
+      }
+      return max_value;
+   }();
+   double zbuffer_min = [*this]() {
+      double min_value = std::numeric_limits<double>::max();
+      for (const auto& row : zbuffer) {
+         for (double z : row) {
+            if (z != std::numeric_limits<double>::max() && z < min_value) {
+               min_value = z;
+            }
+         }
+      }
+      return min_value;
+   }();
+   for (int y = 0; y < buffer.height(); ++y) {
+       for (int x = 0; x < buffer.width(); ++x) {
+         double z_value = zbuffer[y][x];
+         if(zbuffer[y][x]==std::numeric_limits<double>::max()) continue;
+         std::uint8_t intensity = static_cast<std::uint8_t>(255 * ((z_value-zbuffer_min)/(zbuffer_max-zbuffer_min)));
+         buffer.set(x, y, TGAColor(intensity, intensity, intensity));
+      }}
+      buffer.write_tga_file("zbuffer.tga");
+   }
+
 }
 void Scene::rasterize(const vec4 clip_verts[3], TGAImage &image, TGAColor color) {
     vec4 ndc_verts[3];
@@ -232,6 +265,6 @@ void Scene::rasterize(const vec4 clip_verts[3], TGAImage &image, TGAColor color)
 
             zbuffer[y][x] = frag_depth;
             image.set(x, y, color);
-        }
-    }
+         }
+      }
 }

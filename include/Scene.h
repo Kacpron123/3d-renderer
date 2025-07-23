@@ -17,7 +17,7 @@
       /// @param image The image to rasterize the line into.
       /// @param color The color to use for the line.
       void raster_line(vec4 a, vec4 b, TGAImage &image, TGAColor color);
-
+      
       /// @brief Rasterizes a triangle into the given image.
       /// @param clip_verts The three vertices of the triangle in clip space.
       /// @param image The image to rasterize the triangle into.
@@ -25,6 +25,7 @@
       void rasterize(const vec4 clip_verts[3], TGAImage &image, TGAColor color);
       public:
       Scene();
+      bool draw_zbuffer;
       bool drawAxis=true;
       enum Format{WIREFRAME, SOLID,RENDER} format=WIREFRAME;
       void addMesh(Mesh &mesh){Meshes.push_back(mesh);}

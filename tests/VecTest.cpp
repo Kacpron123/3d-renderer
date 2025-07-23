@@ -201,7 +201,7 @@ TEST(VecMathTest, FaceNormal) {
     vec3 v_b(1.0, 0.0, 0.0);
     vec3 v_c(0.0, 1.0, 0.0);
     // Triangle in XY plane, CCW order from above, normal should be (0,0,1)
-    vec3 normal = face_nomral(v_a, v_b, v_c);
+    vec3 normal = face_normal(v_a, v_b, v_c);
     ASSERT_NEAR(normal.x, 0.0, 1e-9);
     ASSERT_NEAR(normal.y, 0.0, 1e-9);
     ASSERT_NEAR(normal.z, 1.0, 1e-9);
@@ -210,7 +210,7 @@ TEST(VecMathTest, FaceNormal) {
     vec3 v_e(0.0, 1.0, 0.0);
     vec3 v_f(1.0, 0.0, 0.0);
     // Same triangle, but CW order, normal should be (0,0,-1)
-    vec3 normal_rev = face_nomral(v_d, v_e, v_f);
+    vec3 normal_rev = face_normal(v_d, v_e, v_f);
     ASSERT_NEAR(normal_rev.x, 0.0, 1e-9);
     ASSERT_NEAR(normal_rev.y, 0.0, 1e-9);
     ASSERT_NEAR(normal_rev.z, -1.0, 1e-9);

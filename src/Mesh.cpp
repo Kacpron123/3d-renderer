@@ -92,9 +92,9 @@ void Mesh::rotateZ(float angle_degrees){
    modelMatrix = modelMatrix * rotation_matrix;
 }
 void Mesh::move(vec3 move){
-modelMatrix[3][0] += move.x;
-modelMatrix[3][1] += move.y;
-modelMatrix[3][2] += move.z;
+    modelMatrix[0][3] += move.x;
+    modelMatrix[1][3] += move.y;
+    modelMatrix[2][3] += move.z;
 }
 void Mesh::scale(vec3 scale){
 for(int i:{0,1,2})
