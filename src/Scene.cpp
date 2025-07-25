@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <ctime>
 
+#include <iostream>
 // be careful, {X,Y,Z} is actually {right,up,left}
 
 
@@ -116,6 +117,42 @@ void Scene::raster_line(vec4 p0_clip, vec4 p1_clip, TGAImage &image, TGAColor co
       }
    }
 }
+class Shader{
+   //temporary
+   const Mesh &mesh;
+   TGAImage texture;
+   public:
+   Shader();
+   Shader(const Mesh &m):mesh(m){
+      texture.read_tga_file("../obj/Crystal/None_BaseColor.tga");
+   };
+TGAColor pixel(const vec3& bc_clip_corrected, int iface) {
+   //texture mapping
+   // Retrieve UVs for the current face from the mesh
+   vec2 uv0 = mesh.uv(iface, 0);
+   vec2 uv1 = mesh.uv(iface, 1);
+   vec2 uv2 = mesh.uv(iface, 2);
+
+   // Perform linear interpolation using the perspective-corrected barycentric coordinates
+   vec2 interpolated_uv;
+   interpolated_uv.x = bc_clip_corrected.x * uv0.x + bc_clip_corrected.y * uv1.x + bc_clip_corrected.z * uv2.x;
+   interpolated_uv.y = bc_clip_corrected.x * uv0.y + bc_clip_corrected.y * uv1.y + bc_clip_corrected.z * uv2.y;
+
+   // Sample the texture
+   TGAColor color = texture.get(static_cast<int>(interpolated_uv.x * texture.width()),
+                                 static_cast<int>(interpolated_uv.y * texture.height()));
+
+   // Ensure clamping is done in get() or manually here:
+   int tex_x = static_cast<int>(interpolated_uv.x * texture.width());
+   int tex_y = static_cast<int>(interpolated_uv.y * texture.height());
+   tex_x = std::max(0, std::min(tex_x, texture.width() - 1));
+   tex_y = std::max(0, std::min(tex_y, texture.height() - 1));
+   color = texture.get(tex_x, tex_y);
+
+   return color;
+}
+};
+
 void Scene::draw(TGAImage& image){
    srand(time(NULL));
    for(auto &line:zbuffer) for(double &v:line) v=std::numeric_limits<double>::max(); //clearing zbuffer
@@ -136,10 +173,10 @@ void Scene::draw(TGAImage& image){
    }
 
    // to speed up calculations, calculate matrix at the start
-   mat4 matrix=projection* modelview;
+   mat4 matrix=once<4>();
    for(const auto &mesh : Meshes){
       std::vector<vec4> draw_verts;
-      matrix=matrix*mesh.getModelMatrix();
+      matrix=projection* modelview*mesh.getModelMatrix();
       for(const vec3 &vert : mesh.get_verts()){
          // object space
          vec4 v=convert_to_size<4>(vert,1.);
@@ -161,6 +198,8 @@ void Scene::draw(TGAImage& image){
          // //here v.z is depth and v.w=1.0
          draw_verts.push_back(v);
       }
+      
+      Shader shader(mesh);
       // drawing:
       switch (format)
       {
@@ -185,7 +224,16 @@ void Scene::draw(TGAImage& image){
          }
          break;
       case RENDER:
-         // pass
+         for(int i=0;i<mesh.nfaces();i++){
+            const vec3i d=mesh.ivert(i);
+            vec3 normal=face_normal(convert_to_size<3>(draw_verts[d[0]]),convert_to_size<3>(draw_verts[d[1]]),convert_to_size<3>(draw_verts[d[2]]));
+            int r = static_cast<int>((normal.x + 1.0) / 2.0 * 255.0);
+            int g = static_cast<int>((normal.y + 1.0) / 2.0 * 255.0);
+            int b = static_cast<int>((normal.z + 1.0) / 2.0 * 255.0);
+            TGAColor color(r, g, b);
+            vec4 clip_verts[3] = { draw_verts[d[0]], draw_verts[d[1]], draw_verts[d[2]] };
+            rasterize_shader(i,clip_verts, image, shader);
+         }
          break;
       }
    }
@@ -226,45 +274,89 @@ void Scene::draw(TGAImage& image){
 
 }
 void Scene::rasterize(const vec4 clip_verts[3], TGAImage &image, TGAColor color) {
-    vec4 ndc_verts[3];
-    for (int i :{0,1,2}) {
-        if (clip_verts[i].w == 0.0f || std::fabs(clip_verts[i].w) < std::numeric_limits<float>::epsilon()) {
-            return;
-        }
-        ndc_verts[i] = clip_verts[i] / clip_verts[i].w;
-    }
-
-    vec4 screen_verts[3] = {
-        viewport * ndc_verts[0],
-        viewport * ndc_verts[1],
-        viewport * ndc_verts[2]
-    };
-
-    vec2 pts2[3] = {
-        convert_to_size<2>(screen_verts[0]),
-        convert_to_size<2>(screen_verts[1]),
-        convert_to_size<2>(screen_verts[2])
-    };
-
-    // Reszta kodu jest ok:
-    int bbminx = std::max(0, static_cast<int>(std::min(std::min(pts2[0].x, pts2[1].x), pts2[2].x)));
-    int bbminy = std::max(0, static_cast<int>(std::min(std::min(pts2[0].y, pts2[1].y), pts2[2].y)));
-    int bbmaxx = std::min(image.width() - 1, static_cast<int>(std::max(std::max(pts2[0].x, pts2[1].x), pts2[2].x)));
-    int bbmaxy = std::min(image.height() - 1, static_cast<int>(std::max(std::max(pts2[0].y, pts2[1].y), pts2[2].y)));
-
-    #pragma omp parallel for
-    for (int x = bbminx; x <= bbmaxx; x++) {
-        for (int y = bbminy; y <= bbmaxy; y++) {
-            vec3 bc_screen = barycentric(pts2, {static_cast<double>(x), static_cast<double>(y)});
-
-            vec3 bc_clip = { ndc_verts[0].w * bc_screen.x, ndc_verts[1].w * bc_screen.y, ndc_verts[2].w * bc_screen.z };
-            bc_clip = bc_clip / (bc_clip.x + bc_clip.y + bc_clip.z);
-
-            double frag_depth = bc_clip * vec3{ ndc_verts[0].z, ndc_verts[1].z, ndc_verts[2].z };
-            if (bc_screen.x < 0 || bc_screen.y < 0 || bc_screen.z < 0 || frag_depth > zbuffer[y][x]) continue;
-
-            zbuffer[y][x] = frag_depth;
-            image.set(x, y, color);
-         }
+   vec4 ndc_verts[3];
+   for (int i :{0,1,2}) {
+      if (clip_verts[i].w == 0.0f || std::fabs(clip_verts[i].w) < std::numeric_limits<float>::epsilon()) {
+         return;
       }
+      ndc_verts[i] = clip_verts[i] / clip_verts[i].w;
+   }
+
+   vec4 screen_verts[3] = {
+      viewport * ndc_verts[0],
+      viewport * ndc_verts[1],
+      viewport * ndc_verts[2]
+   };
+
+   vec2 pts2[3] = {
+      convert_to_size<2>(screen_verts[0]),
+      convert_to_size<2>(screen_verts[1]),
+      convert_to_size<2>(screen_verts[2])
+   };
+
+   int bbminx = std::max(0, static_cast<int>(std::min(std::min(pts2[0].x, pts2[1].x), pts2[2].x)));
+   int bbminy = std::max(0, static_cast<int>(std::min(std::min(pts2[0].y, pts2[1].y), pts2[2].y)));
+   int bbmaxx = std::min(image.width() - 1, static_cast<int>(std::max(std::max(pts2[0].x, pts2[1].x), pts2[2].x)));
+   int bbmaxy = std::min(image.height() - 1, static_cast<int>(std::max(std::max(pts2[0].y, pts2[1].y), pts2[2].y)));
+
+   #pragma omp parallel for
+   for (int x = bbminx; x <= bbmaxx; x++) {
+      for (int y = bbminy; y <= bbmaxy; y++) {
+         vec3 bc_screen = barycentric(pts2, {static_cast<double>(x), static_cast<double>(y)});
+
+         vec3 bc_clip = { ndc_verts[0].w * bc_screen.x, ndc_verts[1].w * bc_screen.y, ndc_verts[2].w * bc_screen.z };
+         bc_clip = bc_clip / (bc_clip.x + bc_clip.y + bc_clip.z);
+
+         double frag_depth = bc_clip * vec3{ ndc_verts[0].z, ndc_verts[1].z, ndc_verts[2].z };
+         if (bc_screen.x < 0 || bc_screen.y < 0 || bc_screen.z < 0 || frag_depth > zbuffer[y][x]) continue;
+
+         zbuffer[y][x] = frag_depth;
+         image.set(x, y, color);
+      }
+   }
+}
+
+void Scene::rasterize_shader(int iface,const vec4 clip_verts[3], TGAImage &image,Shader shader){
+   vec4 ndc_verts[3];
+   for (int i :{0,1,2}) {
+      if (clip_verts[i].w == 0.0f || std::fabs(clip_verts[i].w) < std::numeric_limits<float>::epsilon()) {
+         return;
+      }
+      ndc_verts[i] = clip_verts[i] / clip_verts[i].w;
+   }
+
+   vec4 screen_verts[3] = {
+      viewport * ndc_verts[0],
+      viewport * ndc_verts[1],
+      viewport * ndc_verts[2]
+   };
+
+   vec2 pts2[3] = {
+      convert_to_size<2>(screen_verts[0]),
+      convert_to_size<2>(screen_verts[1]),
+      convert_to_size<2>(screen_verts[2])
+   };
+
+   int bbminx = std::max(0, static_cast<int>(std::min(std::min(pts2[0].x, pts2[1].x), pts2[2].x)));
+   int bbminy = std::max(0, static_cast<int>(std::min(std::min(pts2[0].y, pts2[1].y), pts2[2].y)));
+   int bbmaxx = std::min(image.width() - 1, static_cast<int>(std::max(std::max(pts2[0].x, pts2[1].x), pts2[2].x)));
+   int bbmaxy = std::min(image.height() - 1, static_cast<int>(std::max(std::max(pts2[0].y, pts2[1].y), pts2[2].y)));
+   
+
+   #pragma omp parallel for
+   for (int x = bbminx; x <= bbmaxx; x++) {
+      for (int y = bbminy; y <= bbmaxy; y++) {
+         vec3 bc_screen = barycentric(pts2, {static_cast<double>(x), static_cast<double>(y)});
+
+         vec3 bc_clip = { ndc_verts[0].w * bc_screen.x, ndc_verts[1].w * bc_screen.y, ndc_verts[2].w * bc_screen.z };
+         bc_clip = bc_clip / (bc_clip.x + bc_clip.y + bc_clip.z);
+
+         double frag_depth = bc_clip * vec3{ ndc_verts[0].z, ndc_verts[1].z, ndc_verts[2].z };
+         if (bc_screen.x < 0 || bc_screen.y < 0 || bc_screen.z < 0 || frag_depth > zbuffer[y][x]) continue;
+
+         TGAColor color = shader.pixel(bc_clip,iface);
+         zbuffer[y][x] = frag_depth;
+         image.set(x, y, color);
+      }
+   }
 }

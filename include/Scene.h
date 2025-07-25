@@ -4,6 +4,7 @@
    #include "Mesh.h"
    #include "TGAImage.h"
    #include <vector>
+   class Shader;
    class Scene {
       private:
       mat<4,4> modelview;
@@ -23,6 +24,7 @@
       /// @param image The image to rasterize the triangle into.
       /// @param color The color to use for the triangle.
       void rasterize(const vec4 clip_verts[3], TGAImage &image, TGAColor color);
+      void rasterize_shader(int iface,const vec4 clip_verts[3], TGAImage &image,Shader s);
       public:
       Scene();
       bool draw_zbuffer;

@@ -26,8 +26,8 @@ Mesh::Mesh(const std::string &filename){
       else if(token == "vt"){
          vec2 uv;
          iss >> uv.x >> uv.y;
-         uv.y=1-uv.y; // filping y becuase obj files are inverted horizontally
-         uvs.push_back(normalized(uv));
+         uv.y=uv.y; // filping y becuase obj files are inverted horizontally
+         uvs.push_back(uv);
       }
       else if(token == "vn"){
          vec3 n;
@@ -58,8 +58,8 @@ Mesh::Mesh(const std::string &filename){
          return;
       }
       faces_verts.push_back(v);
+      faces_uvs.push_back(vt);
       faces_norms.push_back(vn);
-      faces_uvs.push_back(vec2i{vt[0], vt[1]});
       }
    }
 }

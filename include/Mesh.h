@@ -12,7 +12,7 @@ class Mesh : public Object3D{
    // faces
    std::vector<vec3i> faces_verts;
    std::vector<vec3i> faces_norms;
-   std::vector<vec2i> faces_uvs;
+   std::vector<vec3i> faces_uvs;
 
    mat4 modelMatrix=once<4>();
 public:
@@ -29,6 +29,7 @@ public:
    vec3 normal(int iface, int nvert) const{ return norms[faces_norms[iface][nvert]]; }
    
    std::vector<vec3> get_verts() const { return verts; }
+   vec2 uv(int iface,int nvert) const { return uvs[faces_uvs[iface][nvert]];}
    
    const mat4& getModelMatrix() const {return modelMatrix;};
    void rotateX(float angle_degrees);

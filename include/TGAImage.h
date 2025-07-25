@@ -39,7 +39,9 @@ struct TGAColor {
    static constexpr TGAColor blue  {0,   0,   255, 255};
    static constexpr TGAColor green {0,   255, 0,   255};
    static constexpr TGAColor white {255, 255, 255, 255};
-   static constexpr TGAColor black {0,   0,   0,   255};struct TGAImage {
+   static constexpr TGAColor black {0,   0,   0,   255};
+   
+   struct TGAImage {
    /// @brief color format
    enum Format { GRAYSCALE=1, RGB=3, RGBA=4 };
    TGAImage() = default;
