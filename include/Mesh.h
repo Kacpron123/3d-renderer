@@ -1,8 +1,10 @@
 #pragma once
-#include "Vec.hpp"
 #include <vector>
-#include "Object3D.h"
+#include <map>
 #include <string>
+#include "Object3D.h"
+#include "Vec.hpp"
+#include "Material.h"
 class TGAImage;
 
 class Mesh : public Object3D{
@@ -13,14 +15,15 @@ class Mesh : public Object3D{
    std::vector<vec3i> faces_verts;
    std::vector<vec3i> faces_norms;
    std::vector<vec3i> faces_uvs;
-
+   
+   std::map<std::string,Material> materials;
    mat4 modelMatrix=once<4>();
 public:
    Mesh() = default;
    Mesh(const std::string &filename);
    Mesh(const Mesh &mesh) = default;
    int nverts() const { return verts.size(); }
-   int nfaces() const { return faces_verts.size(); }
+   int nfaces() const { return faces_verts.size();}
    
    vec3 vert(int i) const { return verts[i]; }
    vec3 vert(int iface, int nvert) const{ return verts[faces_verts[iface][nvert]]; }

@@ -207,3 +207,17 @@ void TGAImage::clear(TGAColor c) {
     for(size_t i = 0; i < num_pixels; i++)
         memcpy(data.data() + i*bpp, c.bgra, bpp);
 }
+void TGAImage::reverse(){
+    if (data.empty())
+        return;
+    for (size_t y = 0; y < h; ++y) {
+    for (size_t x = 0; x < w; ++x) {
+        TGAColor original_color = get(x, y);
+
+        // Invert each component
+        original_color.r = 255 - original_color.r;
+        original_color.g = 255 - original_color.g;
+        original_color.b = 255 - original_color.b;
+        set(x, y, original_color);
+    }}
+}

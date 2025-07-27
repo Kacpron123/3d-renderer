@@ -1,7 +1,6 @@
 #include "Mesh.h"
 #include <fstream>
 #include <sstream>
-
 Mesh::Mesh(const std::string &filename){
    std::ifstream in(filename);
    std::string line;
@@ -15,8 +14,14 @@ Mesh::Mesh(const std::string &filename){
       iss >> token;
       // TODO use map<string,lambda> to save Mesh
       if(token == "#") continue; // comment
-      else if(token == "o"){
-         iss>>m_name;
+      else if(token == "mtllib"){
+         auto new_materials=Material::read_mtl(filename.substr(0, filename.find_last_of('.')) + ".mtl");
+         for(const auto& mat:new_materials){
+            materials[mat.first] = mat.second;
+         }
+      }
+      else if(token == "s"){
+         // TODO implement
       }
       else if (token == "v") { // vertex
          vec3 v;
@@ -100,4 +105,3 @@ void Mesh::scale(vec3 scale){
 for(int i:{0,1,2})
    modelMatrix[i][i] *= scale[i];
 }
-

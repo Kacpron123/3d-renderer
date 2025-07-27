@@ -25,12 +25,18 @@ struct TGAHeader {
 #pragma pack(pop)
 
 struct TGAColor {
-   /// @brief red, green, blue, alpha
-   std::uint8_t bgra[4] = {0,0,0,0};
    /// @brief bytes per pixel
    std::uint8_t bytespp = 4;
+   /// @brief red, green, blue, alpha
+   union {
+      struct {
+         std::uint8_t b, g, r, a;
+      };
+      std::uint8_t bgra[4];
+   };
    std::uint8_t& operator[](const int i) { return bgra[i]; }
-   constexpr TGAColor() = default;
+   constexpr TGAColor():TGAColor(0){};
+   constexpr TGAColor(const std::uint8_t grayscale): bgra{grayscale,grayscale,grayscale,255} {}
    constexpr TGAColor(const std::uint8_t r, const std::uint8_t g, const std::uint8_t b, const std::uint8_t a): bgra{b,g,r,a} {}
    constexpr TGAColor(const std::uint8_t r, const std::uint8_t g, const std::uint8_t b): TGAColor(r,g,b,255){}
 };
@@ -62,6 +68,7 @@ struct TGAColor {
    int width()  const;
    int height() const;
    void clear(TGAColor c = black);
+   void reverse();
 private:
    /// @brief load rle data
    bool   load_rle_data(std::ifstream &in);
