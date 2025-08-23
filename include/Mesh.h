@@ -5,6 +5,7 @@
 #include "Object3D.h"
 #include "Vec.hpp"
 #include "Material.h"
+#include <memory>
 class TGAImage;
 
 class Mesh : public Object3D{
@@ -16,7 +17,7 @@ class Mesh : public Object3D{
    std::vector<vec3i> faces_norms;
    std::vector<vec3i> faces_uvs;
    
-   std::map<std::string,Material> materials;
+   std::map<std::string,std::shared_ptr<Material>> materials;
    mat4 modelMatrix=once<4>();
 public:
    Mesh() = default;

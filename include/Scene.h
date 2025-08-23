@@ -4,6 +4,8 @@
 #include "Mesh.h"
 #include "TGAImage.h"
 #include <vector>
+#include <memory>
+#include <map>
 class Shader;
 class Scene {
    private:
@@ -11,7 +13,7 @@ class Scene {
    mat<4,4> projection;
    mat<4,4> viewport;
    std::vector<std::vector<double>> zbuffer; 
-   std::vector<Mesh> Meshes;
+   std::map<std::string,std::shared_ptr<Mesh>> Meshes;
    /// @brief Rasterizes a line into the given image.
    /// @param a The first endpoint of the line in clip space.
    /// @param b The second endpoint of the line in clip space.
@@ -30,7 +32,7 @@ class Scene {
    bool draw_zbuffer=false;
    bool drawAxis=true;
    enum Format{WIREFRAME, SOLID,RENDER} format=WIREFRAME;
-   void addMesh(Mesh &mesh){Meshes.push_back(mesh);}
+   void addMesh(std::shared_ptr<Mesh> mesh);
    void setCamera(const vec3 eye, const vec3 center, const vec3 up);
    /// @brief Sets the projection matrix based on the given parameters.
    /// @param fovy Field of view in the y direction, in degrees.
@@ -40,7 +42,7 @@ class Scene {
    void setProjection(float fovy, float aspect, float zNear, float zFar);
    /// @brief orthografic projection
    void setProjection(float f);
-   Mesh& getObject(int i){return Meshes[i];}
+   std::shared_ptr<Mesh> getObject(std::string name){return Meshes[name];}
    void setViewport(int x,int y,int width,int height);
    void draw(TGAImage& image);
    ~Scene() = default;

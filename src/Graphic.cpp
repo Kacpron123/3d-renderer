@@ -37,7 +37,6 @@ void triangle(vec2 a, vec2 b, vec2 c, TGAImage &image, TGAColor color){
    int min_y = std::min(image.height()-1,static_cast<int>(std::min(a.y, std::min(b.y, c.y))));
    int max_y = std::max(0,static_cast<int>(std::max(a.y, std::max(b.y, c.y))));
    
-   #pragma omp parallel for
    for(int x=min_x;x<=max_x;x++){
       for(int y=min_y;y<=max_y;y++){
          vec3 bary=barycentric(p,vec2{static_cast<double>(x),static_cast<double>(y)});

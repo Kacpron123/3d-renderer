@@ -17,7 +17,7 @@ Mesh::Mesh(const std::string &filename){
       else if(token == "mtllib"){
          auto new_materials=Material::read_mtl(filename.substr(0, filename.find_last_of('.')) + ".mtl");
          for(const auto& mat:new_materials){
-            materials[mat.first] = mat.second;
+            materials[mat.first] = std::make_shared<Material>(mat.second);
          }
       }
       else if(token == "s"){

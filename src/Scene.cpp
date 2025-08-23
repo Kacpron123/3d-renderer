@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <ctime>
+#include <string>
 
 #include <iostream>
 // be careful, {X,Y,Z} is actually {right,up,left}
@@ -174,10 +175,11 @@ void Scene::draw(TGAImage& image){
 
    // to speed up calculations, calculate matrix at the start
    mat4 matrix=once<4>();
-   for(const auto &mesh : Meshes){
+   for(const auto &mesht : Meshes){
+      auto mesh=mesht.second;
       std::vector<vec4> draw_verts;
-      matrix=projection* modelview*mesh.getModelMatrix();
-      for(const vec3 &vert : mesh.get_verts()){
+      matrix=projection* modelview*mesh->getModelMatrix();
+      for(const vec3 &vert : mesh->get_verts()){
          // object space
          vec4 v=convert_to_size<4>(vert,1.);
 
@@ -199,21 +201,21 @@ void Scene::draw(TGAImage& image){
          draw_verts.push_back(v);
       }
       
-      Shader shader(mesh);
+      Shader shader(*mesh);
       // drawing:
       switch (format)
       {
       case WIREFRAME:
-         for( int i=0;i<mesh.nfaces();i++){
-            const vec3i d=mesh.ivert(i);
+         for( int i=0;i<mesh->nfaces();i++){
+            const vec3i d=mesh->ivert(i);
             raster_line(draw_verts[d[0]],draw_verts[d[1]],image,TGAColor(255,255,255));
             raster_line(draw_verts[d[1]],draw_verts[d[2]],image,TGAColor(255,255,255));
             raster_line(draw_verts[d[2]],draw_verts[d[0]],image,TGAColor(255,255,255));
          }
          break;
       case SOLID:
-         for(int i=0;i<mesh.nfaces();i++){
-            const vec3i d=mesh.ivert(i);
+         for(int i=0;i<mesh->nfaces();i++){
+            const vec3i d=mesh->ivert(i);
             vec3 normal=face_normal(convert_to_size<3>(draw_verts[d[0]]),convert_to_size<3>(draw_verts[d[1]]),convert_to_size<3>(draw_verts[d[2]]));
             int r = static_cast<int>((normal.x + 1.0) / 2.0 * 255.0);
             int g = static_cast<int>((normal.y + 1.0) / 2.0 * 255.0);
@@ -224,8 +226,8 @@ void Scene::draw(TGAImage& image){
          }
          break;
       case RENDER:
-         for(int i=0;i<mesh.nfaces();i++){
-            const vec3i d=mesh.ivert(i);
+         for(int i=0;i<mesh->nfaces();i++){
+            const vec3i d=mesh->ivert(i);
             vec3 normal=face_normal(convert_to_size<3>(draw_verts[d[0]]),convert_to_size<3>(draw_verts[d[1]]),convert_to_size<3>(draw_verts[d[2]]));
             int r = static_cast<int>((normal.x + 1.0) / 2.0 * 255.0);
             int g = static_cast<int>((normal.y + 1.0) / 2.0 * 255.0);
@@ -299,7 +301,6 @@ void Scene::rasterize(const vec4 clip_verts[3], TGAImage &image, TGAColor color)
    int bbmaxx = std::min(image.width() - 1, static_cast<int>(std::max(std::max(pts2[0].x, pts2[1].x), pts2[2].x)));
    int bbmaxy = std::min(image.height() - 1, static_cast<int>(std::max(std::max(pts2[0].y, pts2[1].y), pts2[2].y)));
 
-   #pragma omp parallel for
    for (int x = bbminx; x <= bbmaxx; x++) {
       for (int y = bbminy; y <= bbmaxy; y++) {
          vec3 bc_screen = barycentric(pts2, {static_cast<double>(x), static_cast<double>(y)});
@@ -343,7 +344,6 @@ void Scene::rasterize_shader(int iface,const vec4 clip_verts[3], TGAImage &image
    int bbmaxy = std::min(image.height() - 1, static_cast<int>(std::max(std::max(pts2[0].y, pts2[1].y), pts2[2].y)));
    
 
-   #pragma omp parallel for
    for (int x = bbminx; x <= bbmaxx; x++) {
       for (int y = bbminy; y <= bbmaxy; y++) {
          vec3 bc_screen = barycentric(pts2, {static_cast<double>(x), static_cast<double>(y)});
@@ -359,4 +359,8 @@ void Scene::rasterize_shader(int iface,const vec4 clip_verts[3], TGAImage &image
          image.set(x, y, color);
       }
    }
+}
+
+void Scene::addMesh(std::shared_ptr<Mesh> mesh){
+   Meshes.insert({"Mesh"+std::to_string(Meshes.size()),mesh});
 }

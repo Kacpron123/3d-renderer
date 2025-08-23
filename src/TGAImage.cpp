@@ -210,8 +210,8 @@ void TGAImage::clear(TGAColor c) {
 void TGAImage::reverse(){
     if (data.empty())
         return;
-    for (size_t y = 0; y < h; ++y) {
-    for (size_t x = 0; x < w; ++x) {
+    for (int y = 0; y < h; ++y) {
+    for (int x = 0; x < w; ++x) {
         TGAColor original_color = get(x, y);
 
         // Invert each component

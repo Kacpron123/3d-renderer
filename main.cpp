@@ -1,12 +1,13 @@
 #include <iostream>
+#include <chrono>
+#include <thread>
+
 #include "Mesh.h"
 #include "TGAImage.h"
 #include "Graphic.h"
 #include "Scene.h"
-#include "Mesh.h"
+#include <memory>
 
-#include <chrono>
-#include <thread>
 
 // Sleep for a specified number of milliseconds
 void sleep_for_ms(int milliseconds) {
@@ -24,10 +25,16 @@ int main(int argc, char* argv[]) {
    scene.setProjection(60.0f,(double)width/height,0.1,100.0);
    scene.setViewport(0,0,width,height);
    scene.format=Scene::Format::RENDER;
-   Mesh Crystal("../obj/Crystal/Crystals_low.obj");
-   Crystal.scale(3);
+   std::shared_ptr<Mesh> Crystal = std::make_shared<Mesh>("../obj/Crystal/Crystals_low.obj");
+   Crystal->scale(3);
    scene.addMesh(Crystal);
-   scene.draw(image);
+   for(int i=0;i<9;i++){
+      image.clear();
+      // scene.getObject(0).rotateY(10);
+      scene.draw(image);
+      image.write_tga_file("output.tga");
+      sleep_for_ms(300);
+   }
    image.write_tga_file("output.tga");
    
    return 0;
