@@ -37,6 +37,7 @@ __device__ bool intersect_triangle(const vec3& ray_origin, const vec3& ray_dir, 
    }
    return false;
 }
+// for debugging if needed
 __device__ void printf_mat4(const char* name,const mat4& m) {
    printf("%s:\n", name);
    for (int i = 0; i < 4; ++i) {
@@ -46,7 +47,7 @@ __device__ void printf_mat4(const char* name,const mat4& m) {
 
 // The CUDA kernel. This function runs on the GPU.
 // Each thread handles one pixel.
-__global__ void renderKernel(unsigned char* d_image_data, int width, int height, const DeviceMesh* d_meshes,int num_meshes,const mat4* d_modelview,const mat4* d_projection) {
+__global__ void renderKernel(unsigned char* d_image_data, int width, int height, const DeviceMesh* d_meshes,int num_meshes,const Light* d_lights,int num_lights,const mat4* d_modelview,const mat4* d_projection) {
    int x = blockIdx.x * blockDim.x + threadIdx.x;
    int y = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -71,18 +72,15 @@ __global__ void renderKernel(unsigned char* d_image_data, int width, int height,
    vec4 eye_h=inv_projection*ray_dir_ndc;
    vec3 ray_dir_world = normalized(convert_to_size<3>(inv_modelview* vec4{eye_h.x,eye_h.y,-1.0f,0.0f}));
    vec3 ray_origin_world = convert_to_size<3>(inv_modelview * vec4{0, 0, 0, 1}); //tranpose becuase mat4 is row-major
-   // printf("(%f, %f, %f) (%f, %f, %f)\n", ray_dir_world.x, ray_dir_world.y, ray_dir_world.z, ray_origin_world.x, ray_origin_world.y, ray_origin_world.z);
+  
    Ray ray_world = {ray_origin_world, ray_dir_world};
-   // printf("(%f, %f, %f)\n", ray_origin_world.x, ray_origin_world.y, ray_origin_world.z);
    int closest_mesh=-1,closest_face=-1;
    float t,u,v;
    float closest_t = 1e10f; // Initialize with a large value
-   vec3 final_color = {0.0f, 0.0f, 0.0f};
    
    // Iterate through all meshes in the scene
    for (int i = 0; i < num_meshes; ++i) {
       const DeviceMesh& mesh = d_meshes[i];
-      // print vec of each faces
       // Transform the ray into the mesh's local space
       mat4 inv_modelMatrix = mesh.modelMatrix.invert();
       vec3 ray_origin_local = convert_to_size<3>(inv_modelMatrix * convert_to_size<4>(ray_world.origin, 1.0));
@@ -93,7 +91,6 @@ __global__ void renderKernel(unsigned char* d_image_data, int width, int height,
          vec3 v0 = mesh.d_verts[face[0]];
          vec3 v1 = mesh.d_verts[face[1]];
          vec3 v2 = mesh.d_verts[face[2]];
-         // printf("%f %f %f\n",v0,v1,v2);
          float temp_u,temp_v;
          if (intersect_triangle(ray_origin_local, ray_dir_local, v0, v1, v2, t, temp_u,temp_v)) {
             if (t < closest_t && t > 0.0f) {
@@ -102,7 +99,6 @@ __global__ void renderKernel(unsigned char* d_image_data, int width, int height,
                closest_face=j;
                u=temp_u;
                v=temp_v;
-               // printf("+");
          }}}}
    if(closest_face==-1){
       d_image_data[(y * width + x) * 3 + 0] = 0;
@@ -110,27 +106,11 @@ __global__ void renderKernel(unsigned char* d_image_data, int width, int height,
       d_image_data[(y * width + x) * 3 + 2] = 0;
       return;
    }
-   const DeviceMesh& mesh=d_meshes[closest_mesh];
-   
-   mat4 inv_modelMatrix=mesh.modelMatrix.invert();
-   // TEMPORARY
-   // Simple light source for testing
-   vec3 light_dir_world = vec3{3.0f, 3.0f, 3.0f};
-   vec3 light_dir = normalized(convert_to_size<3>(inv_modelMatrix.transpose()*convert_to_size<4>(light_dir_world,0.0)));
 
-   // Get interpolated normal
-   vec3i face_n = mesh.d_faces_norms[closest_face];
-   vec3 n0 = mesh.d_norms[face_n[0]];
-   vec3 n1 = mesh.d_norms[face_n[1]];
-   vec3 n2 = mesh.d_norms[face_n[2]];
-         
-   vec3 interpolated_normal = normalized(n0 * u + n1 * v + n2 * (1.0f - u - v));
-            
-   // Apply lighting
-   float diffuse = fmaxf(dot(interpolated_normal, -1*light_dir), 0.0f);
-            
+   const DeviceMesh& mesh=d_meshes[closest_mesh];
+   mat4 inv_modelMatrix_face=mesh.modelMatrix.invert();
    // Sample diffuse texture
-   TGAColor tex_color;
+   vec3 tex_color;
    if (mesh.d_diffuse_map_data.d_data != nullptr) {
       vec3i face_uv = mesh.d_faces_uvs[closest_face];
       vec2 uv0 = mesh.d_uvs[face_uv[0]];
@@ -151,17 +131,66 @@ __global__ void renderKernel(unsigned char* d_image_data, int width, int height,
       tex_y = max(0, min(tex_y, mesh.d_diffuse_map_data.texture_height - 1));
       
       int tex_idx = (tex_y * mesh.d_diffuse_map_data.texture_width + tex_x) * 3;
-      tex_color.bgra[2] = mesh.d_diffuse_map_data.d_data[tex_idx + 0];
-      tex_color.bgra[1] = mesh.d_diffuse_map_data.d_data[tex_idx + 1];
-      tex_color.bgra[0] = mesh.d_diffuse_map_data.d_data[tex_idx + 2];
-      tex_color.bgra[3] = 255;
+      tex_color.x = mesh.d_diffuse_map_data.d_data[tex_idx + 0];
+      tex_color.y = mesh.d_diffuse_map_data.d_data[tex_idx + 1];
+      tex_color.z = mesh.d_diffuse_map_data.d_data[tex_idx + 2];
    } else {
-      tex_color = TGAColor(0, 0, 0);
+      tex_color = vec3{0,0,0};
    }
-   // printf("%d %d,\n",x,y);
-   final_color.x = tex_color.bgra[0];
-   final_color.y = tex_color.bgra[1];
-   final_color.z = tex_color.bgra[2];
+   
+   
+   vec3 point_world=ray_origin_world+closest_t*ray_dir_world;
+   vec3 final_color_vec = {0.0f, 0.0f, 0.0f};
+   
+   // Get interpolated normal
+   vec3i face_n = mesh.d_faces_norms[closest_face];
+   vec3 n0 = mesh.d_norms[face_n[0]];
+   vec3 n1 = mesh.d_norms[face_n[1]];
+   vec3 n2 = mesh.d_norms[face_n[2]]; 
+   vec3 interpolated_normal = normalized(n0 * u + n1 * v + n2 * (1.0f - u - v));
+   
+      // caluclate light
+      for(int li=0;li<num_lights;li++){
+         vec3 light_pos_world=d_lights[li].pos;
+         float intensity=d_lights[li].intensity;
+         
+         // shadow rays:
+         bool in_shadow=false;
+         for (int i = 0; !in_shadow && i < num_meshes; ++i) {
+         const DeviceMesh& mesh = d_meshes[i];
+         // Transform the ray into the mesh's local space
+         mat4 inv_modelMatrix = mesh.modelMatrix.invert();
+         vec3 shadow_ray_origin_local = convert_to_size<3>(inv_modelMatrix * convert_to_size<4>(point_world, 1.0));
+         vec3 light_pos_local = convert_to_size<3>(inv_modelMatrix * convert_to_size<4>(light_pos_world, 1.0));
+         vec3 shadow_ray_dir_local = normalized(light_pos_local - shadow_ray_origin_local);
+         float t_shadow;
+         float light_dist=norm(light_pos_world-point_world);
+         // Iterate through all faces of the mesh
+         for (int j = 0; !in_shadow && j < mesh.num_faces; ++j) {
+            vec3i face = mesh.d_faces_verts[j];
+            vec3 v0 = mesh.d_verts[face[0]];
+            vec3 v1 = mesh.d_verts[face[1]];
+            vec3 v2 = mesh.d_verts[face[2]];
+            float temp_u,temp_v;
+            if (intersect_triangle(shadow_ray_origin_local, shadow_ray_dir_local, v0, v1, v2, t_shadow, temp_u,temp_v)) {
+               // if(t_shadow > 1e-4f && t_shadow < light_dist)
+               in_shadow=true;
+            }}}
+
+         if(!in_shadow){
+            vec3 light_dir_local = normalized(convert_to_size<3>(inv_modelMatrix_face * convert_to_size<4>(light_pos_world - point_world, 0.0)));
+            float diffuse = fmaxf(dot(interpolated_normal, light_dir_local), 0.0f);
+            final_color_vec = final_color_vec + tex_color * diffuse * intensity;
+         }
+      }
+      
+   // final_color_vec = tex_color; // color of texture
+   // repair bgr to rgb
+   float temp=final_color_vec.x;
+   final_color_vec.x=final_color_vec.z;
+   final_color_vec.z=temp;
+
+   vec3 final_color=final_color_vec;
 
    
    
@@ -173,17 +202,17 @@ __global__ void renderKernel(unsigned char* d_image_data, int width, int height,
 
 // Global function to be called from the host (CPU) code
 // This is the entry point for CUDA rendering.
-void render_cuda(TGAImage& image, const mat4& modelview, const mat4& projection, const mat4& viewport,const std::map<std::string,std::shared_ptr<Mesh>>& meshes) {
+void render_cuda(TGAImage& image, const Scene& scene) {
    // Prepare data on the host (CPU) ---
    int width = image.width();
    int height = image.height();
    std::vector<unsigned char> h_image_data(width * height * 3); // Host-side image data
   
    // Create a vector of DeviceMesh structs on the host
-   std::vector<DeviceMesh> h_device_meshes(meshes.size());
-
+   std::vector<DeviceMesh> h_device_meshes(scene.Meshes.size());
    // Pointers for device memory
    DeviceMesh* d_meshes;
+   Light* d_lights;
    unsigned char* d_image_data;
    mat4 *d_modelview;
    mat4 *d_projection;
@@ -192,15 +221,17 @@ void render_cuda(TGAImage& image, const mat4& modelview, const mat4& projection,
    // Allocate device memory for the image
    CHECK_CUDA(cudaMalloc(&d_image_data, h_image_data.size()));
    // Allocate device memory for the meshes
-   CHECK_CUDA(cudaMalloc(&d_meshes, meshes.size() * sizeof(DeviceMesh)));
+   CHECK_CUDA(cudaMalloc(&d_meshes, scene.Meshes.size() * sizeof(DeviceMesh)));
+   // lights
+   CHECK_CUDA(cudaMalloc(&d_lights, scene.lights.size() * sizeof(Light)));
+   CHECK_CUDA(cudaMemcpy(d_lights,scene.lights.data(),scene.lights.size()*sizeof(Light),cudaMemcpyHostToDevice));
    // copy matricies
    CHECK_CUDA(cudaMalloc(&d_modelview,sizeof(mat4))); 
    CHECK_CUDA(cudaMalloc(&d_projection,sizeof(mat4))); 
-   CHECK_CUDA(cudaMemcpy(d_modelview,&modelview,sizeof(mat4),cudaMemcpyHostToDevice ));
-   CHECK_CUDA(cudaMemcpy(d_projection,&projection,sizeof(mat4),cudaMemcpyHostToDevice ));
-
+   CHECK_CUDA(cudaMemcpy(d_modelview,&scene.modelview,sizeof(mat4),cudaMemcpyHostToDevice ));
+   CHECK_CUDA(cudaMemcpy(d_projection,&scene.projection,sizeof(mat4),cudaMemcpyHostToDevice ));
    int mesh_idx = 0;
-   for (const auto& pair : meshes) {
+   for (const auto& pair : scene.Meshes) {
       const auto& mesh = pair.second;
       DeviceMesh& dmesh=h_device_meshes[mesh_idx];
       // Mesh matrix
@@ -247,12 +278,12 @@ void render_cuda(TGAImage& image, const mat4& modelview, const mat4& projection,
     }
 
    // Copy the array of DeviceMesh structs to the device
-   CHECK_CUDA(cudaMemcpy(d_meshes, h_device_meshes.data(), meshes.size() * sizeof(DeviceMesh), cudaMemcpyHostToDevice));
+   CHECK_CUDA(cudaMemcpy(d_meshes, h_device_meshes.data(), scene.Meshes.size() * sizeof(DeviceMesh), cudaMemcpyHostToDevice));
 
    // --- Step 3: Launch the kernel ---
    dim3 blockSize(16, 16);
    dim3 gridSize((width + blockSize.x - 1) / blockSize.x, (height + blockSize.y - 1) / blockSize.y);
-   renderKernel<<<gridSize, blockSize>>>(d_image_data, width, height, d_meshes, meshes.size(), d_modelview, d_projection);
+   renderKernel<<<gridSize, blockSize>>>(d_image_data, width, height, d_meshes, scene.Meshes.size(),d_lights,scene.lights.size(), d_modelview, d_projection);
    CHECK_CUDA(cudaGetLastError()); // Check for kernel launch errors
    CHECK_CUDA(cudaDeviceSynchronize()); // Wait for the GPU to finish
 
@@ -274,6 +305,7 @@ void render_cuda(TGAImage& image, const mat4& modelview, const mat4& projection,
          CHECK_CUDA(cudaFree(h_device_meshes[i].d_diffuse_map_data.d_data));
       }
    }
+   CHECK_CUDA(cudaFree(d_lights));
    CHECK_CUDA(cudaFree(d_meshes));
    CHECK_CUDA(cudaFree(d_projection));
    CHECK_CUDA(cudaFree(d_modelview));

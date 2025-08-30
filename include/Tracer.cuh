@@ -2,6 +2,7 @@
 
 #include "Vec.hpp"
 #include "Mesh.h"
+#include "Scene.h"
 #include "cuda_runtime.h"
 #include <map>
 #include <memory>
@@ -62,4 +63,6 @@ __device__ bool intersect_triangle(const vec3& ray_origin, const vec3& ray_dir, 
 /// \param viewport The viewport matrix to use.
 /// \param meshes A map of mesh names to meshes to render.
 /// \throws cudaError_t if an error occurs.
-void render_cuda(TGAImage& image, const mat4& modelview, const mat4& projection, const mat4& viewport,const std::map<std::string,std::shared_ptr<Mesh>>& meshes);
+void render_cuda(TGAImage& image, const Scene& scene);
+
+__global__ void renderKernel(unsigned char* d_image_data, int width, int height, const DeviceMesh* d_meshes,int num_meshes,const Light* d_lights,int num_lights,const mat4* d_modelview,const mat4* d_projection);

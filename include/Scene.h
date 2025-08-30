@@ -7,6 +7,11 @@
 #include <memory>
 #include <map>
 class Shader;
+struct Light{
+      vec3 pos;
+      // TGAColor color;
+      float intensity;
+   };
 class Scene {
    private:
    mat<4,4> modelview;
@@ -14,11 +19,7 @@ class Scene {
    mat<4,4> viewport;
    std::vector<std::vector<double>> zbuffer; 
    std::map<std::string,std::shared_ptr<Mesh>> Meshes;
-   struct Light{
-      vec3 pos;
-      // TGAColor color;
-      float intensity;
-   };
+   
    std::vector<Light> lights;
    /// @brief Rasterizes a line into the given image.
    /// @param a The first endpoint of the line in clip space.
@@ -49,8 +50,11 @@ class Scene {
    /// @brief orthografic projection
    void setProjection(float f);
    void addLight(vec3 pos,float intensity);
+   void removeLight(int index){lights.erase(lights.begin()+index);}
    std::shared_ptr<Mesh> getObject(std::string name){return Meshes[name];}
    void setViewport(int x,int y,int width,int height);
    void draw(TGAImage& image);
    ~Scene() = default;
+
+   friend void render_cuda(TGAImage&, const Scene&);
 };

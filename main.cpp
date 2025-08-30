@@ -24,14 +24,21 @@ int main(int argc, char* argv[]) {
    // // setProjection(norm(vec3{1,1,3}));
    scene.setProjection(60.0f,(double)width/height,0.1,100.0);
    scene.setViewport(0,0,width,height);
-   // scene.addLight({2,2,2},1);
+   scene.addLight({4,5,2},2);
+   scene.addLight({0,5,2},1);
    scene.format=Scene::Format::RENDER;
    std::shared_ptr<Mesh> Crystal = std::make_shared<Mesh>("../obj/Crystal/Crystals_low.obj");
    std::shared_ptr<Mesh> Cube = std::make_shared<Mesh>("../obj/Cube.obj");
-   Cube->move(vec3{0,1,0});
-   Crystal->scale(3);
+   std::shared_ptr<Mesh> Cube2 = std::make_shared<Mesh>("../obj/Cube.obj");
+   Cube->move(vec3{1,1,1});
+   Cube2->scale(0.5);
+   // Cube2->move(vec3{2,3,2});
+   
+   Crystal->move(vec3{1.5,2,1});
+   // Crystal->scale(2);
    scene.addMesh(Crystal);
-   // scene.addMesh(Cube);
+   scene.addMesh(Cube);
+   // scene.addMesh(Cube2);
    for(int i=0;i<1;i++){
       image.clear();
       // Crystal->rotateX(10);

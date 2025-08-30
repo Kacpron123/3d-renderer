@@ -159,7 +159,7 @@ void Scene::draw(TGAImage& image){
    for(auto &line:zbuffer) for(double &v:line) v=std::numeric_limits<double>::max(); //clearing zbuffer
 
    if(format==Format::RENDER){
-      render_cuda(image,modelview,projection,viewport,Meshes);
+      render_cuda(image,*this);
       return;
    }
    if(drawAxis){

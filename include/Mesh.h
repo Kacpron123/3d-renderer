@@ -7,6 +7,7 @@
 #include "Material.h"
 #include <memory>
 class TGAImage;
+class Scene;
 
 class Mesh : public Object3D{
    std::vector<vec3> verts;
@@ -45,6 +46,6 @@ public:
    void scale(double f){scale({f,f,f});}
    auto getMaterials() const {return materials;};
 
-   friend void render_cuda(TGAImage&, const mat4&, const mat4&, const mat4&, const std::map<std::string, std::shared_ptr<Mesh>>&);
+   friend void render_cuda(TGAImage&, const Scene&);
     
 };
