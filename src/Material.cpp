@@ -114,52 +114,61 @@ std::map<std::string,Material> Material::read_mtl(const std::string filename){
       else if (token == "map_Ka") { //ambient texture
          std::string texture_path;
          iss >> texture_path;
-         TGAImage img;img.read_tga_file(path+texture_path);
-         current_material.ambient_map=img;
+         TGAImage img;
+         if(img.read_tga_file(path+texture_path))
+            current_material.ambient_map=img;
       }
       else if (token == "map_Kd") { //diffuse texture
          std::string texture_path;
          iss >> texture_path;
-         TGAImage img;img.read_tga_file(path+texture_path);
-         current_material.diffuse_map=img;
+         TGAImage img;
+         if(img.read_tga_file(path+texture_path))
+            current_material.diffuse_map=img;
       }
       else if (token == "map_Ks") { //specular_color_texture
          std::string texture_path;
          iss >> texture_path;
-         TGAImage img;img.read_tga_file(path+texture_path);
-         current_material.specular_color_map=img;
+         TGAImage img;
+         if(img.read_tga_file(path+texture_path))
+            current_material.specular_color_map=img;
       }
       else if (token == "map_Ns") { // Specular highlight map
          std::string texture_path;
          iss >> texture_path;
-         TGAImage img;img.read_tga_file(path+texture_path);
-         current_material.specular_highlight_map=img;
+         TGAImage img;
+         if(img.read_tga_file(path+texture_path))
+            current_material.specular_highlight_map=img;
       }
       else if (token == "map_Bump" || token == "bump") { // Normal/Bump Map
          std::string texture_path;
          iss >> texture_path;
-         TGAImage img;img.read_tga_file(path+texture_path);
-         current_material.bump_map=img;
+         TGAImage img;
+         if(img.read_tga_file(path+texture_path))
+            current_material.bump_map=img;
          // Handle optional arguments like -bm for bump strength if needed
       }
       else if (token == "map_d" || token == "map_Tr") { // Dissolve/Transparency Map
          std::string texture_path;
          iss >> texture_path;
-         TGAImage img;img.read_tga_file(path+texture_path);
-         if(token=="map_Tr") img.reverse();
-         current_material.dissolve_map=img;
+         TGAImage img;
+         if(img.read_tga_file(path+texture_path)){
+            if(token=="map_Tr") img.reverse();
+            current_material.dissolve_map=img;
+         }
       }
       else if (token == "map_disp" || token == "disp") { // Displacement Map
          std::string texture_path;
          iss >> texture_path;
-         TGAImage img;img.read_tga_file(path+texture_path);
-         current_material.disspacement_map=img;
+         TGAImage img;
+         if(img.read_tga_file(path+texture_path))
+            current_material.disspacement_map=img;
       }
       else if (token == "map_Ke") { // Emission Map (custom)
          std::string texture_path;
          iss >> texture_path;
-         TGAImage img;img.read_tga_file(path+texture_path);
-         current_material.emission_map=img;
+         TGAImage img;
+         if(img.read_tga_file(path+texture_path))
+            current_material.emission_map=img;
       }
    }
    // After the loop, add the last material that was being built

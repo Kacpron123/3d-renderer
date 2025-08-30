@@ -4,9 +4,14 @@
 newmtl Crystal
 Ns 500
 Ka 0.8 0.8 0.8
-Kd 0.8 0.8 0.8
 Ks 0.8 0.8 0.8
 d 1
 illum 2
+#containg for lookup
 #map_Kd None_BaseColor.png
 map_Kd None_BaseColor.tga
+#map_Ke None_Emissive.png
+map_Ke None_Emissive.tga
+#map_Kd None_AO.png
+#map_Kd None_AO.tga
+

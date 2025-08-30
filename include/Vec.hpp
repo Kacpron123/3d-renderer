@@ -2,16 +2,17 @@
 #include <cmath>
 #include <cassert>
 #include <iostream>
+#include <cuda_runtime.h>
 
 template<int n,typename T=double> struct vec {
    static_assert(n>0);
    static_assert(std::is_arithmetic<T>::value);
-   vec() = default;
-   vec(const vec<n>& v) { for(int i=0;i<n;i++) data[i]=v[i]; }
-   explicit vec(T v) { for(int i=0;i<n;i++) data[i]=v; }
-   T& operator[](const int i)       { assert(i>=0 && i<n); return data[i]; }
-   T  operator[](const int i) const { assert(i>=0 && i<n); return data[i]; }
-   vec(std::initializer_list<T> list){
+   __host__ __device__ vec() = default;
+   __host__ __device__ vec(const vec<n>& v) { for(int i=0;i<n;i++) data[i]=v[i]; }
+   __host__ __device__ explicit vec(T v) { for(int i=0;i<n;i++) data[i]=v; }
+   __host__ __device__ T& operator[](const int i)       { assert(i>=0 && i<n); return data[i]; }
+   __host__ __device__ T  operator[](const int i) const { assert(i>=0 && i<n); return data[i]; }
+   __host__ __device__ vec(std::initializer_list<T> list){
       static_assert(n==list.size());
       int i=0;
       for(T v: list)
@@ -23,30 +24,30 @@ template<int n,typename T=double> struct vec {
 
 template<typename T> struct vec<2,T> {
    T x = 0, y = 0;
-   vec() = default;
-   vec(T x, T y) : x(x), y(y) {}
-   vec(const vec<2>& v) : x(v.x), y(v.y) {}
-   T& operator[](const int i)       { assert(i>=0 && i<2); return i ? y : x; }
-   T  operator[](const int i) const { assert(i>=0 && i<2); return i ? y : x; }
+   __host__ __device__ vec() = default;
+   __host__ __device__ vec(T x, T y) : x(x), y(y) {}
+   __host__ __device__ vec(const vec<2>& v) : x(v.x), y(v.y) {}
+   __host__ __device__ T& operator[](const int i)       { assert(i>=0 && i<2); return i ? y : x; }
+   __host__ __device__ T  operator[](const int i) const { assert(i>=0 && i<2); return i ? y : x; }
 
 };
 
 template<typename T> struct vec<3,T> {
    T x = 0, y = 0, z = 0;
-   vec() = default;
-   vec(T x, T y, T z) : x(x), y(y), z(z) {}
-   vec(const vec<3>& v) : x(v.x), y(v.y), z(v.z) {}
-   T& operator[](const int i)       { assert(i>=0 && i<3); return i ? (1==i ? y : z) : x; }
-   T  operator[](const int i) const { assert(i>=0 && i<3); return i ? (1==i ? y : z) : x; }
+   __host__ __device__ vec() = default;
+   __host__ __device__ vec(T x, T y, T z) : x(x), y(y), z(z) {}
+   __host__ __device__ vec(const vec<3>& v) : x(v.x), y(v.y), z(v.z) {}
+   __host__ __device__ T& operator[](const int i)       { assert(i>=0 && i<3); return i ? (1==i ? y : z) : x; }
+   __host__ __device__ T  operator[](const int i) const { assert(i>=0 && i<3); return i ? (1==i ? y : z) : x; }
 };
 
 template<typename T> struct vec<4,T> {
    T x = 0, y = 0, z = 0, w = 0;
-   vec() = default;
-   vec(T x, T y, T z, T w) : x(x), y(y), z(z), w(w) {}
-   vec(const vec<4>& v) : x(v.x), y(v.y), z(v.z), w(v.w) {}
-   T& operator[](const int i)       { assert(i>=0 && i<4); return i<2 ? (i ? y : x) : (2==i ? z : w); }
-   T  operator[](const int i) const { assert(i>=0 && i<4); return i<2 ? (i ? y : x) : (2==i ? z : w); }
+   __host__ __device__ vec() = default;
+   __host__ __device__ vec(T x, T y, T z, T w) : x(x), y(y), z(z), w(w) {}
+   __host__ __device__ vec(const vec<4>& v) : x(v.x), y(v.y), z(v.z), w(v.w) {}
+   __host__ __device__ T& operator[](const int i)       { assert(i>=0 && i<4); return i<2 ? (i ? y : x) : (2==i ? z : w); }
+   __host__ __device__ T  operator[](const int i) const { assert(i>=0 && i<4); return i<2 ? (i ? y : x) : (2==i ? z : w); }
 };
 
 // Aliases
@@ -60,34 +61,44 @@ typedef vec<4,int> vec4i;
 
 // Operators
 
-template<int n,typename T> double operator*(const vec<n,T>& lhs, const vec<n,T>& rhs) {
+template<int n,typename T> 
+__host__ __device__ double operator*(const vec<n,T>& lhs, const vec<n,T>& rhs) {
    T res = 0;
    for(int i=0; i<n; i++) res+=lhs[i]*rhs[i];
    return res;
 }
+template<int n,typename T> 
+__host__ __device__ T dot(const vec<n,T>& lhs, const vec<n,T>& rhs) {
+   return lhs*rhs;
+}
 
-template<int n,typename T> vec<n,T> operator+(const vec<n,T>& lhs, const vec<n,T>& rhs) {
+template<int n,typename T> 
+__host__ __device__ vec<n,T> operator+(const vec<n,T>& lhs, const vec<n,T>& rhs) {
    vec<n,T> res = lhs;
    for(int i=0;i<n;i++) res[i]+=rhs[i];
    return res;
 }
 
-template<int n,typename T> vec<n,T> operator-(const vec<n,T>& lhs, const vec<n,T>& rhs) {
+template<int n,typename T> 
+__host__ __device__ vec<n,T> operator-(const vec<n,T>& lhs, const vec<n,T>& rhs) {
    vec<n,T> res = lhs;
    for(int i=0;i<n;i++) res[i]-=rhs[i];
    return res;
 }
-template<int n,typename T> vec<n,T> operator*(const vec<n,T>& lhs, const T& rhs) {
+template<int n,typename T,typename U> vec<n,T> 
+__host__ __device__ operator*(const vec<n,T>& lhs, const U& rhs) {
    vec<n,T> res = lhs;
    for(int i=0;i<n;i++) res[i]*=rhs;
    return res;
 }
 
-template<int n,typename T> vec<n,T> operator*(const T& lhs, const vec<n,T> &rhs) {
+template<int n,typename T,typename U> 
+__host__ __device__ vec<n,T> operator*(const U& lhs, const vec<n,T> &rhs) {
    return rhs * lhs;
 }
 
-template<int n,typename T> vec<n,T> operator/(const vec<n,T>& lhs, const T& rhs) {
+template<int n,typename T> vec<n,T> 
+__host__ __device__ operator/(const vec<n,T>& lhs, const T& rhs) {
    vec<n,T> res = lhs;
    for (int i=n; i--; res[i]/=rhs);
    return res;
@@ -102,28 +113,32 @@ template<int n> std::ostream& operator<<(std::ostream& out, const vec<n>& v) {
 
 // Operations
 
-template<int n> double norm(const vec<n>& v) {
+template<int n> 
+__host__ __device__ double norm(const vec<n>& v) {
    return std::sqrt(v*v);
 }
 
-template<int n> vec<n> normalized(const vec<n>& v) {
-   return v / norm(v);
+template<int n> vec<n> 
+__host__ __device__ normalized(const vec<n>& v) {
+   double nm=norm(v);
+   if(nm<1e-8) return vec<n>();
+   return v / nm;
 }
 
-inline vec3 cross(const vec3 &v1, const vec3 &v2) {
+__host__ __device__ inline vec3 cross(const vec3 &v1, const vec3 &v2) {
    return {v1.y*v2.z - v1.z*v2.y, v1.z*v2.x - v1.x*v2.z, v1.x*v2.y - v1.y*v2.x};
 }
 
-inline vec3 face_normal(const vec3 &v1, const vec3 &v2, const vec3 &v3) {
+__host__ __device__ inline vec3 face_normal(const vec3 &v1, const vec3 &v2, const vec3 &v3) {
    return normalized(cross(v2-v1, v3-v1));
 }
 
 /// @brief Converts a vector of size old_size to a vector of size new_size
 /// it fills the rest of the vector with fill parameter and return vector of size new_size 
 template<int new_size,int old_size,typename T>
-vec<new_size,T> convert_to_size(const vec<old_size,T>& v,T fill=T{0}){
+__host__ __device__  vec<new_size,T> convert_to_size(const vec<old_size,T>& v,T fill=T{0}){
    vec<new_size,T> res;
-   int common_size=std::min(new_size,old_size);
+   int common_size=(new_size<old_size?new_size:old_size);
    for(int i=0;i<common_size;i++)
       res[i]=v[i];
 
@@ -139,38 +154,99 @@ template<int nrows,int ncols> struct mat {
    vec<ncols> rows[nrows] = {{}};
 
    /// @brief operator[] returns a row
-   vec<ncols>& operator[] (const int idx)       { assert(idx>=0 && idx<nrows); return rows[idx]; }
+   __host__ __device__ vec<ncols>& operator[] (const int idx)       { assert(idx>=0 && idx<nrows); return rows[idx]; }
    /// @brief operator[] returns a row
-   const vec<ncols>& operator[] (const int idx) const { assert(idx>=0 && idx<nrows); return rows[idx]; }
+   __host__ __device__ const vec<ncols>& operator[] (const int idx) const { assert(idx>=0 && idx<nrows); return rows[idx]; }
 
-   static mat<nrows,ncols> identity() {
+   __host__ __device__ static mat<nrows,ncols> identity() {
       mat<nrows,ncols> res;
       for (int i=nrows; i--; res[i][i]=1);
       return res;
    }
 
-   double det() const {
-      return dt<ncols>::det(*this);
-   }
-   double cofactor(const int row, const int col) const {
-      mat<nrows-1,ncols-1> submatrix;
-      for (int i=nrows-1; i--; )
-         for (int j=ncols-1;j--; submatrix[i][j]=rows[i+int(i>=row)][j+int(j>=col)]);
-      return submatrix.det() * ((row+col)%2 ? -1 : 1);
+   __host__ __device__ mat<nrows,ncols> invert() const {
+      if constexpr(nrows==ncols && nrows==4){
+         mat<nrows, ncols> inv;
+         float det;
+         float m[16];
+   
+         // Copy matrix data to a flat array for easier indexing
+         for (int r = 0; r < 4; ++r) {
+            for (int c = 0; c < 4; ++c) {
+               m[r * 4 + c] = rows[r][c];
+            }
+         }
+   
+         // Calculate the cofactor matrix
+         inv[0][0] = m[5] * m[10] * m[15] - m[5] * m[11] * m[14] - m[9] * m[6] * m[15] + m[9] * m[7] * m[14] + m[13] * m[6] * m[11] - m[13] * m[7] * m[10];
+         inv[0][1] = -m[4] * m[10] * m[15] + m[4] * m[11] * m[14] + m[8] * m[6] * m[15] - m[8] * m[7] * m[14] - m[12] * m[6] * m[11] + m[12] * m[7] * m[10];
+         inv[0][2] = m[4] * m[9] * m[15] - m[4] * m[11] * m[13] - m[8] * m[5] * m[15] + m[8] * m[7] * m[13] + m[12] * m[5] * m[11] - m[12] * m[7] * m[9];
+         inv[0][3] = -m[4] * m[9] * m[14] + m[4] * m[10] * m[13] + m[8] * m[5] * m[14] - m[8] * m[6] * m[13] - m[12] * m[5] * m[10] + m[12] * m[6] * m[9];
+         inv[1][0] = -m[1] * m[10] * m[15] + m[1] * m[11] * m[14] + m[9] * m[2] * m[15] - m[9] * m[3] * m[14] - m[13] * m[2] * m[11] + m[13] * m[3] * m[10];
+         inv[1][1] = m[0] * m[10] * m[15] - m[0] * m[11] * m[14] - m[8] * m[2] * m[15] + m[8] * m[3] * m[14] + m[12] * m[2] * m[11] - m[12] * m[3] * m[10];
+         inv[1][2] = -m[0] * m[9] * m[15] + m[0] * m[11] * m[13] + m[8] * m[1] * m[15] - m[8] * m[3] * m[13] - m[12] * m[1] * m[11] + m[12] * m[3] * m[9];
+         inv[1][3] = m[0] * m[9] * m[14] - m[0] * m[10] * m[13] - m[8] * m[1] * m[14] + m[8] * m[2] * m[13] + m[12] * m[1] * m[10] - m[12] * m[2] * m[9];
+         inv[2][0] = m[1] * m[6] * m[15] - m[1] * m[7] * m[14] - m[5] * m[2] * m[15] + m[5] * m[3] * m[14] + m[13] * m[2] * m[7] - m[13] * m[3] * m[6];
+         inv[2][1] = -m[0] * m[6] * m[15] + m[0] * m[7] * m[14] + m[4] * m[2] * m[15] - m[4] * m[3] * m[14] - m[12] * m[2] * m[7] + m[12] * m[3] * m[6];
+         inv[2][2] = m[0] * m[5] * m[15] - m[0] * m[7] * m[13] - m[4] * m[1] * m[15] + m[4] * m[3] * m[13] + m[12] * m[1] * m[7] - m[12] * m[3] * m[5];
+         inv[2][3] = -m[0] * m[5] * m[14] + m[0] * m[6] * m[13] + m[4] * m[1] * m[14] - m[4] * m[2] * m[13] - m[12] * m[1] * m[6] + m[12] * m[2] * m[5];
+         inv[3][0] = -m[1] * m[6] * m[11] + m[1] * m[7] * m[10] + m[5] * m[2] * m[11] - m[5] * m[3] * m[10] - m[9] * m[2] * m[7] + m[9] * m[3] * m[6];
+         inv[3][1] = m[0] * m[6] * m[11] - m[0] * m[7] * m[10] - m[4] * m[2] * m[11] + m[4] * m[3] * m[10] + m[8] * m[2] * m[7] - m[8] * m[3] * m[6];
+         inv[3][2] = -m[0] * m[5] * m[11] + m[0] * m[7] * m[9] + m[4] * m[1] * m[11] - m[4] * m[3] * m[9] - m[8] * m[1] * m[7] + m[8] * m[3] * m[5];
+         inv[3][3] = m[0] * m[5] * m[10] - m[0] * m[6] * m[9] - m[4] * m[1] * m[10] + m[4] * m[2] * m[9] + m[8] * m[1] * m[6] - m[8] * m[2] * m[5];
+      
+         // Calculate determinant
+         det = m[0] * inv[0][0] + m[1] * inv[0][1] + m[2] * inv[0][2] + m[3] * inv[0][3];
+   
+         // If determinant is 0, matrix is not invertible
+         if (det == 0) {
+            // Return identity matrix or another identity
+            return mat<nrows, ncols>::identity();
+         }
+      
+         det = 1.0f / det;
+      
+         mat<nrows, ncols> result;
+         for (int r = 0; r < 4; ++r) {
+         for (int c = 0; c < 4; ++c) {
+            result[r][c] = inv[r][c] * det;
+         }
+      }
+         return result.transpose();
+      }
+      else if constexpr(nrows==3) {
+         const mat<3,3>& A = *this;
+         mat<3,3> inv;
+         
+         // Obliczanie wyznacznika
+         float det = A[0][0]*(A[1][1]*A[2][2] - A[2][1]*A[1][2]) -
+                     A[0][1]*(A[1][0]*A[2][2] - A[1][2]*A[2][0]) +
+                     A[0][2]*(A[1][0]*A[2][1] - A[1][1]*A[2][0]);
+         
+         const float EPSILON = 1e-6f;
+         if (abs(det) < EPSILON) {
+            // Zwracamy macierz jednostkową, jeśli macierz jest osobliwa
+            return identity();
+         }
+
+         float inv_det = 1.0f / det;
+         
+         inv[0][0] = (A[1][1] * A[2][2] - A[2][1] * A[1][2]) * inv_det;
+         inv[0][1] = (A[0][2] * A[2][1] - A[0][1] * A[2][2]) * inv_det;
+         inv[0][2] = (A[0][1] * A[1][2] - A[0][2] * A[1][1]) * inv_det;
+         inv[1][0] = (A[1][2] * A[2][0] - A[1][0] * A[2][2]) * inv_det;
+         inv[1][1] = (A[0][0] * A[2][2] - A[0][2] * A[2][0]) * inv_det;
+         inv[1][2] = (A[0][2] * A[1][0] - A[0][0] * A[1][2]) * inv_det;
+         inv[2][0] = (A[1][0] * A[2][1] - A[2][0] * A[1][1]) * inv_det;
+         inv[2][1] = (A[0][1] * A[2][0] - A[0][0] * A[2][1]) * inv_det;
+         inv[2][2] = (A[0][0] * A[1][1] - A[0][1] * A[1][0]) * inv_det;
+         
+         return inv;
+      }
    }
 
-   mat<nrows,ncols> invert_transpose() const {
-      mat<nrows,ncols> adjugate_transpose; // transpose to ease determinant computation, check the last line
-      for (int i=nrows; i--; )
-         for (int j=ncols; j--; adjugate_transpose[i][j]=cofactor(i,j));
-      return adjugate_transpose/(adjugate_transpose[0]*rows[0]);
-   }
 
-   mat<nrows,ncols> invert() const {
-      return invert_transpose().transpose();
-   }
-
-   mat<ncols,nrows> transpose() const {
+   __host__ __device__ mat<ncols,nrows> transpose() const {
       mat<ncols,nrows> res;
       for (int i=ncols; i--; )
          for (int j=nrows; j--; res[i][j]=rows[j][i]);
@@ -187,17 +263,20 @@ template<int n> mat<n,n> once(){
    return res;
 }
 
-template<int nrows,int ncols> vec<ncols> operator*(const vec<nrows>& lhs, const mat<nrows,ncols>& rhs) {
+template<int nrows,int ncols>
+__host__ __device__ vec<ncols> operator*(const vec<nrows>& lhs, const mat<nrows,ncols>& rhs) {
    return (mat<1,nrows>{{lhs}}*rhs)[0];
 }
 
-template<int nrows,int ncols> vec<nrows> operator*(const mat<nrows,ncols>& lhs, const vec<ncols>& rhs) {
+template<int nrows,int ncols>
+__host__ __device__ vec<nrows> operator*(const mat<nrows,ncols>& lhs, const vec<ncols>& rhs) {
    vec<nrows> res;
    for (int i=nrows; i--; res[i]=lhs[i]*rhs);
    return res;
 }
 
-template<int R1,int C1,int C2>mat<R1,C2> operator*(const mat<R1,C1>& lhs, const mat<C1,C2>& rhs) {
+template<int R1,int C1,int C2>
+__host__ __device__ mat<R1,C2>operator*(const mat<R1,C1>& lhs, const mat<C1,C2>& rhs) {
    mat<R1,C2> result;
    for (int i=R1; i--; )
       for (int j=C2; j--; )
@@ -205,26 +284,30 @@ template<int R1,int C1,int C2>mat<R1,C2> operator*(const mat<R1,C1>& lhs, const 
    return result;
 }
 
-template<int nrows,int ncols>mat<nrows,ncols> operator*(const mat<nrows,ncols>& lhs, const double& val) {
+template<int nrows,int ncols>
+__host__ __device__ mat<nrows,ncols> operator*(const mat<nrows,ncols>& lhs, const double& val) {
    mat<nrows,ncols> result;
    for (int i=nrows; i--; result[i] = lhs[i]*val);
    return result;
 }
 
-template<int nrows,int ncols>mat<nrows,ncols> operator/(const mat<nrows,ncols>& lhs, const double& val) {
+template<int nrows,int ncols>
+__host__ __device__ mat<nrows,ncols> operator/(const mat<nrows,ncols>& lhs, const double& val) {
    mat<nrows,ncols> result;
    for (int i=nrows; i--; result[i] = lhs[i]/val);
    return result;
 }
 
-template<int nrows,int ncols>mat<nrows,ncols> operator+(const mat<nrows,ncols>& lhs, const mat<nrows,ncols>& rhs) {
+template<int nrows,int ncols>
+__host__ __device__ mat<nrows,ncols> operator+(const mat<nrows,ncols>& lhs, const mat<nrows,ncols>& rhs) {
    mat<nrows,ncols> result;
    for (int i=nrows; i--; )
       for (int j=ncols; j--; result[i][j]=lhs[i][j]+rhs[i][j]);
    return result;
 }
 
-template<int nrows,int ncols>mat<nrows,ncols> operator-(const mat<nrows,ncols>& lhs, const mat<nrows,ncols>& rhs) {
+template<int nrows,int ncols>mat<nrows,ncols>
+__host__ __device__ operator-(const mat<nrows,ncols>& lhs, const mat<nrows,ncols>& rhs) {
    mat<nrows,ncols> result;
    for (int i=nrows; i--; )
       for (int j=ncols; j--; result[i][j]=lhs[i][j]-rhs[i][j]);
@@ -237,7 +320,7 @@ template<int nrows,int ncols> std::ostream& operator<<(std::ostream& out, const 
 }
 
 template<int n> struct dt {
-   static double det(const mat<n,n>& src) {
+   __host__ __device__ static double det(const mat<n,n>& src) {
       double res = 0;
       for (int i=n; i--; res += src[0][i] * src.cofactor(0,i));
       return res;
@@ -245,7 +328,7 @@ template<int n> struct dt {
 };
 
 template<> struct dt<1> {
-   static double det(const mat<1,1>& src) {
+   __host__ __device__ static double det(const mat<1,1>& src) {
       return src[0][0];
    }
 };

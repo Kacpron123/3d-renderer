@@ -14,6 +14,12 @@ class Scene {
    mat<4,4> viewport;
    std::vector<std::vector<double>> zbuffer; 
    std::map<std::string,std::shared_ptr<Mesh>> Meshes;
+   struct Light{
+      vec3 pos;
+      // TGAColor color;
+      float intensity;
+   };
+   std::vector<Light> lights;
    /// @brief Rasterizes a line into the given image.
    /// @param a The first endpoint of the line in clip space.
    /// @param b The second endpoint of the line in clip space.
@@ -42,6 +48,7 @@ class Scene {
    void setProjection(float fovy, float aspect, float zNear, float zFar);
    /// @brief orthografic projection
    void setProjection(float f);
+   void addLight(vec3 pos,float intensity);
    std::shared_ptr<Mesh> getObject(std::string name){return Meshes[name];}
    void setViewport(int x,int y,int width,int height);
    void draw(TGAImage& image);

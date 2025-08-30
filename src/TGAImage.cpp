@@ -215,9 +215,19 @@ void TGAImage::reverse(){
         TGAColor original_color = get(x, y);
 
         // Invert each component
-        original_color.r = 255 - original_color.r;
-        original_color.g = 255 - original_color.g;
-        original_color.b = 255 - original_color.b;
+        for(auto i:{0,1,2}){
+            original_color.bgra[i] = 255 - original_color.bgra[i];
+        }
         set(x, y, original_color);
     }}
+}
+TGAImage& TGAImage::operator=(const TGAImage& img){
+    if(this == &img)
+        return *this;
+    w = img.w;
+    h = img.h;
+    bpp = img.bpp;
+    data.resize(img.data.size());
+    std::copy(img.data.begin(), img.data.end(), data.begin());
+    return *this;
 }

@@ -25,7 +25,7 @@ vec3 barycentric(const vec2 a[3], vec2 p){
                   vec3{a[1].x , a[1].y , 1.},
                   vec3{a[2].x , a[2].y , 1.}};
    // if(ABC.det()<1e-9) return vec3{-1,1,1};
-   return ABC.invert_transpose() * vec3{p.x,p.y,1};
+   return ABC.invert().transpose() * vec3{p.x,p.y,1};
 }
 void triangle(vec2 a, vec2 b, vec2 c, TGAImage &image, TGAColor color){
    int winding_value = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);

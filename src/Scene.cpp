@@ -2,6 +2,7 @@
 #include "TGAImage.h"
 #include "Vec.hpp"
 #include "Graphic.h"
+#include "Tracer.cuh"
 // rand()
 #include <algorithm>
 #include <cstdlib>
@@ -32,23 +33,23 @@ void Scene::setProjection(float f){
    projection = {vec4{1,0,0,0},vec4{0,-1,0,0},vec4{0,0,1,0},vec4{0,0,-1/f,0}};
 }
 void Scene::setProjection(float fovy_degrees, float aspect, float zNear, float zFar) {
-    // Convert field of view from degrees to radians, as tan() expects radians.
-    float fovy_radians = fovy_degrees * M_PI / 180.0f;
-    float tanHalfFovy = tan(fovy_radians / 2.0f);
+   // Convert field of view from degrees to radians, as tan() expects radians.
+   float fovy_radians = fovy_degrees * M_PI / 180.0f;
+   float tanHalfFovy = tan(fovy_radians / 2.0f);
 
-    float m00 = 1.0f / (aspect * tanHalfFovy);
-    float m11 = 1.0f / tanHalfFovy;
-    float m22 = -(zFar + zNear) / (zFar - zNear);
-    float m23 = -2.0f * (zFar * zNear) / (zFar - zNear);
-    float m32 = -1.0f;
-    float m33 = 0.0f;
+   float m00 = 1.0f / (aspect * tanHalfFovy);
+   float m11 = 1.0f / tanHalfFovy;
+   float m22 = -(zFar + zNear) / (zFar - zNear);
+   float m23 = -2.0f * (zFar * zNear) / (zFar - zNear);
+   float m32 = -1.0f;
+   float m33 = 0.0f;
 
-    projection = {
-        vec4{m00, 0, 0, 0},   
-        vec4{0, m11, 0, 0},   
-        vec4{0, 0, m22, m23}, 
-        vec4{0, 0, m32, m33}  
-    };
+   projection = {
+      vec4{m00, 0, 0, 0},   
+      vec4{0, m11, 0, 0},   
+      vec4{0, 0, m22, m23}, 
+      vec4{0, 0, m32, m33}  
+   };
 
 }
 void Scene::setViewport(int x,int y,int width,int height){
@@ -59,8 +60,6 @@ void Scene::setViewport(int x,int y,int width,int height){
       vec4{0,0,0,1}};
    zbuffer=std::vector<std::vector<double>>(height, std::vector<double>(width, 0));
    }
-   
-
 void Scene::raster_line(vec4 p0_clip, vec4 p1_clip, TGAImage &image, TGAColor color) {
    if (p0_clip.w == 0.0f || std::fabs(p0_clip.w) < std::numeric_limits<float>::epsilon() ||
       p1_clip.w == 0.0f || std::fabs(p1_clip.w) < std::numeric_limits<float>::epsilon()) {
@@ -125,7 +124,8 @@ class Shader{
    public:
    Shader();
    Shader(const Mesh &m):mesh(m){
-      texture.read_tga_file("../obj/Crystal/None_BaseColor.tga");
+      texture=mesh.getMaterials().begin()->second->diffuse_map;
+      // texture.read_tga_file("../obj/Crystal/None_BaseColor.tga");
    };
 TGAColor pixel(const vec3& bc_clip_corrected, int iface) {
    //texture mapping
@@ -158,6 +158,10 @@ void Scene::draw(TGAImage& image){
    srand(time(NULL));
    for(auto &line:zbuffer) for(double &v:line) v=std::numeric_limits<double>::max(); //clearing zbuffer
 
+   if(format==Format::RENDER){
+      render_cuda(image,modelview,projection,viewport,Meshes);
+      return;
+   }
    if(drawAxis){
       double length = 2.0;
       TGAColor colors[] = {red, green, blue};  
@@ -226,13 +230,9 @@ void Scene::draw(TGAImage& image){
          }
          break;
       case RENDER:
+         // old CPU version above at the start of method is GPU one
          for(int i=0;i<mesh->nfaces();i++){
             const vec3i d=mesh->ivert(i);
-            vec3 normal=face_normal(convert_to_size<3>(draw_verts[d[0]]),convert_to_size<3>(draw_verts[d[1]]),convert_to_size<3>(draw_verts[d[2]]));
-            int r = static_cast<int>((normal.x + 1.0) / 2.0 * 255.0);
-            int g = static_cast<int>((normal.y + 1.0) / 2.0 * 255.0);
-            int b = static_cast<int>((normal.z + 1.0) / 2.0 * 255.0);
-            TGAColor color(r, g, b);
             vec4 clip_verts[3] = { draw_verts[d[0]], draw_verts[d[1]], draw_verts[d[2]] };
             rasterize_shader(i,clip_verts, image, shader);
          }
@@ -363,4 +363,8 @@ void Scene::rasterize_shader(int iface,const vec4 clip_verts[3], TGAImage &image
 
 void Scene::addMesh(std::shared_ptr<Mesh> mesh){
    Meshes.insert({"Mesh"+std::to_string(Meshes.size()),mesh});
+}
+
+void Scene::addLight(vec3 pos,float intensity){
+   lights.push_back(Light{pos,intensity});
 }
